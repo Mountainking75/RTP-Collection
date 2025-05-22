@@ -98,8 +98,12 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
         ? collections[collection].filter(entry => entry.week === filterWeek)
         : collections[collection];
 
-    // Sort entries by date (ascending)
-    entries = entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // Sort entries by date (ascending), then by time (ascending)
+    entries = entries.sort((a, b) => {
+        const dateCompare = new Date(a.date) - new Date(b.date);
+        if (dateCompare !== 0) return dateCompare;
+        return a.time.localeCompare(b.time);
+    });
 
     if (entries.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="10" class="no-results">Nenhuma entrada encontrada.</td></tr>`;
@@ -199,8 +203,12 @@ function loadFromLocalStorage() {
 // Export module
 const exportModule = {
     toTxt(entries, collection) {
-        // Sort entries by date for export
-        entries = entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+        // Sort entries by date, then by time for export
+        entries = entries.sort((a, b) => {
+            const dateCompare = new Date(a.date) - new Date(b.date);
+            if (dateCompare !== 0) return dateCompare;
+            return a.time.localeCompare(b.time);
+        });
         let content = '';
         entries.forEach(entry => {
             content += `**Nome do Programa**: ${entry.programName}\n`;
@@ -221,8 +229,12 @@ const exportModule = {
         link.click();
     },
     toPdf(entries, collection) {
-        // Sort entries by date for export
-        entries = entries.sort((a, b) => new Date(a.date) - new Date(b.date));
+        // Sort entries by date, then by time for export
+        entries = entries.sort((a, b) => {
+            const dateCompare = new Date(a.date) - new Date(b.date);
+            if (dateCompare !== 0) return dateCompare;
+            return a.time.localeCompare(b.time);
+        });
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.autoTable({
@@ -257,6 +269,8 @@ const exportModule = {
         doc.save(`${collection}.pdf`);
     }
 };
+
+
 
 function exportFilteredCollection(collection, filterWeek, formatId) {
     const format = document.getElementById(formatId).value;
@@ -298,12 +312,14 @@ function exportFilteredCollection(collection, filterWeek, formatId) {
 function sortTable(collection, column, thElement) {
     const ascending = thElement.getAttribute('aria-sort') !== 'ascending';
     collections[collection].sort((a, b) => {
-        // Always sort by date first, then by the selected column
+        // Sort by date, then time, then selected column
         const dateCompare = new Date(a.date) - new Date(b.date);
         if (dateCompare !== 0) return dateCompare;
+        const timeCompare = a.time.localeCompare(b.time);
+        if (timeCompare !== 0) return timeCompare;
         const valA = a[column] || '';
         const valB = b[column] || '';
-        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valB);
+        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valA);
     });
 
     // Update aria-sort for accessibility
