@@ -58,13 +58,12 @@ function addToCollection() {
 
     // Add entry to collection
     collections[fields.collection].push(fields);
-    // Render with current filter
+    // Render with current filter and highlight new entry
     const currentFilterWeek = DOM.filterWeek.value;
-    renderTable(fields.collection, currentFilterWeek || null, true); // Pass true to highlight new entry
+    renderTable(fields.collection, currentFilterWeek || null, true);
     saveToLocalStorage();
     DOM.form.reset();
     DOM.errorMessages.textContent = '';
-    // Show success notification
     showNotification('Entrada adicionada com sucesso!');
 }
 
@@ -76,7 +75,7 @@ function showNotification(message) {
         DOM.notification.classList.remove('show');
         setTimeout(() => {
             DOM.notification.textContent = '';
-        }, 500); // Wait for fade-out transition
+        }, 500);
     }, 3000);
 }
 
@@ -95,9 +94,12 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
     const tableBody = document.getElementById(`${collection.replace(/ /g, '_')}TableBody`);
     tableBody.innerHTML = '';
 
-    const entries = filterWeek
+    let entries = filterWeek
         ? collections[collection].filter(entry => entry.week === filterWeek)
         : collections[collection];
+
+    // Sort entries by date (ascending)
+    entries = entries.sort((a, b) => new Date(a.date) - new Date(b.date));
 
     if (entries.length === 0) {
         tableBody.innerHTML = `<tr><td colspan="10" class="no-results">Nenhuma entrada encontrada.</td></tr>`;
@@ -106,12 +108,11 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
 
     entries.forEach((entry, index) => {
         const row = document.createElement('tr');
-        // Highlight the last row if it's a new entry
         if (highlightNew && index === entries.length - 1) {
             row.classList.add('highlight');
             setTimeout(() => {
                 row.classList.remove('highlight');
-            }, 2000); // Match CSS transition duration
+            }, 2000);
         }
         row.innerHTML = `
             <td>${entry.programName}</td>
@@ -153,7 +154,8 @@ function confirmDelete(collection, index) {
 
 function deleteEntry(collection, index) {
     collections[collection].splice(index, 1);
-    renderTable(collection);
+    const currentFilterWeek = DOM.filterWeek.value;
+    renderTable(collection, currentFilterWeek || null);
     saveToLocalStorage();
 }
 
@@ -197,6 +199,8 @@ function loadFromLocalStorage() {
 // Export module
 const exportModule = {
     toTxt(entries, collection) {
+        // Sort entries by date for export
+        entries = entries.sort((a, b) => new Date(a.date) - new Date(b.date));
         let content = '';
         entries.forEach(entry => {
             content += `**Nome do Programa**: ${entry.programName}\n`;
@@ -217,6 +221,8 @@ const exportModule = {
         link.click();
     },
     toPdf(entries, collection) {
+        // Sort entries by date for export
+        entries = entries.sort((a, b) => new Date(a.date) - new Date(b.date));
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.autoTable({
@@ -235,14 +241,17 @@ const exportModule = {
             styles: { fontSize: 8 },
             headStyles: { fillColor: [200, 200, 200] },
             columnStyles: {
-                8: { cellWidth: 20, textColor: entry => {
-                    switch (entry) {
-                        case 'NOVIDADE': return 'green';
-                        case 'ESTREIA': return 'red';
-                        case 'REPETIÇÃO': return 'blue';
-                        default: return 'black';
+                8: {
+                    cellWidth: 20,
+                    textColor: entry => {
+                        switch (entry) {
+                            case 'NOVIDADE': return 'green';
+                            case 'ESTREIA': return 'red';
+                            case 'REPETIÇÃO': return 'blue';
+                            default: return 'black';
+                        }
                     }
-                }}
+                }
             }
         });
         doc.save(`${collection}.pdf`);
@@ -256,7 +265,7 @@ function exportFilteredCollection(collection, filterWeek, formatId) {
         return;
     }
 
-    const entries = filterWeek
+    let entries = filterWeek
         ? collections[collection].filter(entry => entry.week === filterWeek)
         : collections[collection];
 
@@ -289,9 +298,12 @@ function exportFilteredCollection(collection, filterWeek, formatId) {
 function sortTable(collection, column, thElement) {
     const ascending = thElement.getAttribute('aria-sort') !== 'ascending';
     collections[collection].sort((a, b) => {
+        // Always sort by date first, then by the selected column
+        const dateCompare = new Date(a.date) - new Date(b.date);
+        if (dateCompare !== 0) return dateCompare;
         const valA = a[column] || '';
         const valB = b[column] || '';
-        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valB);
     });
 
     // Update aria-sort for accessibility
@@ -300,7 +312,8 @@ function sortTable(collection, column, thElement) {
     });
     thElement.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
 
-    renderTable(collection);
+    const currentFilterWeek = DOM.filterWeek.value;
+    renderTable(collection, currentFilterWeek || null);
 }
 
 // Populate dropdowns
