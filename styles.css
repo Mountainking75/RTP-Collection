@@ -1,6 +1,6 @@
 /* CSS variables for consistency */
 :root {
---spacing: 10px;
+    --spacing: 10px;
     --border-color: #ddd;
     --primary-color: #007bff;
     --success-color: #28a745;
@@ -9,7 +9,7 @@
 
 /* General styling */
 body {
-  font-family: Arial, sans-serif;
+    font-family: Arial, sans-serif;
     margin: var(--spacing);
     max-width: 1200px;
     margin-inline: auto;
@@ -18,6 +18,7 @@ body {
 h1, h2, h3 {
     color: #333;
 }
+
 /* Notification styling */
 .notification {
     position: fixed;
@@ -35,6 +36,7 @@ h1, h2, h3 {
 .notification.show {
     opacity: 1;
 }
+
 /* Form styling */
 form {
     display: grid;
@@ -55,11 +57,13 @@ input, select, button {
     width: 100%;
     box-sizing: border-box;
 }
+
 input:focus, select:focus {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
 }
+
 button {
     background-color: var(--primary-color);
     color: white;
@@ -69,10 +73,12 @@ button {
 button:hover {
     background-color: #0056b3;
 }
+
 button:disabled {
     background-color: #ccc;
     cursor: not-allowed;
 }
+
 .form-buttons {
     display: flex;
     gap: var(--spacing);
@@ -108,13 +114,32 @@ th:hover {
 tr:hover {
     background-color: #f5f5f5;
 }
+
 tr.highlight {
     background-color: var(--highlight-color);
     transition: background-color 2s ease-out;
 }
-.novidade { color: green; }
-.estreia { color: red; }
-.repeticao { color: blue; }
+
+/* Category styling with bold and preserved colors */
+.novidade {
+    color: green;
+    font-weight: bold; /* Added bold */
+}
+
+.estreia {
+    color: red;
+    font-weight: bold; /* Added bold */
+}
+
+.repeticao {
+    color: blue;
+    font-weight: bold; /* Added bold */
+}
+
+/* Make category dropdown options bold */
+#category option {
+    font-weight: bold;
+}
 
 .no-results {
     text-align: center;
@@ -128,6 +153,7 @@ tr.highlight {
     gap: var(--spacing);
     margin-bottom: var(--spacing);
 }
+
 .loader {
     border: 2px solid #f3f3f3;
     border-top: 2px solid var(--primary-color);
@@ -150,6 +176,7 @@ tr.highlight {
     gap: var(--spacing);
     align-items: center;
 }
+
 /* Responsive design */
 @media (max-width: 600px) {
     table {
@@ -162,7 +189,7 @@ tr.highlight {
     }
     form {
         grid-template-columns: 1fr;
-      }
+    }
     .notification {
         width: calc(100% - 2 * var(--spacing));
         right: var(--spacing);
