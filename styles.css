@@ -5,6 +5,10 @@
     --primary-color: #007bff;
     --success-color: #28a745;
     --highlight-color: #d4edda;
+    /* Define category background colors */
+    --novidade-bg: #28a745; /* Green */
+    --estreia-bg: #dc3545; /* Red */
+    --repeticao-bg: #007bff; /* Blue */
 }
 
 /* General styling */
@@ -120,25 +124,44 @@ tr.highlight {
     transition: background-color 2s ease-out;
 }
 
-/* Category styling with bold and preserved colors */
+/* Category styling with background colors, bold text, and white text for contrast */
 .novidade {
-    color: green;
-    font-weight: bold; /* Added bold */
+    background-color: var(--novidade-bg);
+    color: white; /* Changed to white for contrast */
+    font-weight: bold;
 }
 
 .estreia {
-    color: red;
-    font-weight: bold; /* Added bold */
+    background-color: var(--estreia-bg);
+    color: white; /* Changed to white for contrast */
+    font-weight: bold;
 }
 
 .repeticao {
-    color: blue;
-    font-weight: bold; /* Added bold */
+    background-color: var(--repeticao-bg);
+    color: white; /* Changed to white for contrast */
+    font-weight: bold;
 }
 
-/* Make category dropdown options bold */
+/* Style category dropdown options */
 #category option {
     font-weight: bold;
+}
+
+/* Style selected option in dropdown (limited browser support) */
+#category option.novidade {
+    background-color: var(--novidade-bg);
+    color: white;
+}
+
+#category option.estreia {
+    background-color: var(--estreia-bg);
+    color: white;
+}
+
+#category option.repeticao {
+    background-color: var(--repeticao-bg);
+    color: white;
 }
 
 .no-results {

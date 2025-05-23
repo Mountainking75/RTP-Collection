@@ -255,20 +255,21 @@ const exportModule = {
             columnStyles: {
                 8: {
                     cellWidth: 20,
-                    textColor: entry => {
+                    fontStyle: 'bold', // Preserve bold
+                    fillColor: entry => {
                         switch (entry) {
-                            case 'NOVIDADE': return 'green';
-                            case 'ESTREIA': return 'red';
-                            case 'REPETIÇÃO': return 'blue';
-                            default: return 'black';
+                            case 'NOVIDADE': return [40, 167, 69]; // Green (RGB equivalent of #28a745)
+                            case 'ESTREIA': return [220, 53, 69]; // Red (RGB equivalent of #dc3545)
+                            case 'REPETIÇÃO': return [0, 123, 255]; // Blue (RGB equivalent of #007bff)
+                            default: return [255, 255, 255]; // White for fallback
                         }
-                    }
+                    },
+                    textColor: [255, 255, 255] // White text for contrast
                 }
             }
         });
         doc.save(`${collection}.pdf`);
     }
-};
 
 
 
