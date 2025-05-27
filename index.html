@@ -5,94 +5,93 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gerenciador de Coleções RTP</title>
-    <!-- Link to external CSS -->
     <link rel="stylesheet" href="styles.css">
-    <!-- Include jsPDF and jspdf-autotable for improved PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
-    <!-- Link to external JavaScript with defer -->
     <script src="script.js" defer></script>
 </head>
 <body>
     <h1>Gerenciador de Coleções RTP</h1>
-   <!-- Notification div for success messages -->
     <div id="notification" class="notification" role="alert"></div>
     <form id="form" onsubmit="addToCollection(); return false;">
-        <!-- Form content remains unchanged -->
         <div id="errorMessages" class="error-messages" role="alert"></div>
-        <!-- ... rest of the form ... --><!-- Improved form with semantic structure and ARIA attributes -->
-    <form id="form" onsubmit="addToCollection(); return false;">
-        <div id="errorMessages" class="error-messages" role="alert"></div>
-        <label for="collection">Coleção:</label>
-        <select id="collection" aria-required="true">
-            <option value="RTP 1">RTP 1</option>
-            <option value="RTP 2">RTP 2</option>
-            <option value="RTP 3">RTP 3</option>
-            <option value="RTP Memoria">RTP Memória</option>
-            <option value="RTP Africa">RTP África</option>
-        </select>
-
-        <label for="programName">Nome do Programa:</label>
-        <input type="text" id="programName" aria-required="true">
-
-        <label for="processNumber">Número de Processo:</label>
-        <input type="text" id="processNumber" aria-required="true">
-
-        <label for="week">Semana:</label>
-        <select id="week" aria-required="true"></select>
-
-        <label for="day">Dia da Semana:</label>
-        <select id="day" aria-required="true">
-            <option value="Segunda-feira">Segunda-feira</option>
-            <option value="Terça-feira">Terça-feira</option>
-            <option value="Quarta-feira">Quarta-feira</option>
-            <option value="Quinta-feira">Quinta-feira</option>
-            <option value="Sexta-feira">Sexta-feira</option>
-            <option value="Sábado">Sábado</option>
-            <option value="Domingo">Domingo</option>
-        </select>
-
-        <label for="date">Dia e Mês:</label>
-        <input type="date" id="date" aria-required="true">
-
-        <label for="time">Hora:</label>
-        <input type="time" id="time" aria-required="true">
-
-        <label for="rightsDuration">Duração de Direitos:</label>
-        <input type="text" id="rightsDuration" aria-required="true">
-
-        <label for="programType">Tipo de Programa:</label>
-        <input type="text" id="programType" aria-required="true">
-
-        <label for="category">Categoria:</label>
-        <select id="category" aria-required="true">
-            <option value="NOVIDADE" class="novidade">NOVIDADE</option>
-            <option value="ESTREIA" class="estreia">ESTREIA</option>
-            <option value="REPETIÇÃO" class="repeticao">REPETIÇÃO</option>
-        </select>
-
+        <div>
+            <label for="collection">Coleção:</label>
+            <select id="collection" aria-required="true">
+                <option value="RTP 1">RTP 1</option>
+                <option value="RTP 2">RTP 2</option>
+                <option value="RTP 3">RTP 3</option>
+                <option value="RTP Memoria">RTP Memória</option>
+                <option value="RTP Africa">RTP África</option>
+            </select>
+        </div>
+        <div>
+            <label for="programName">Nome do Programa:</label>
+            <input type="text" id="programName" aria-required="true">
+        </div>
+        <div>
+            <label for="processNumber">Número de Processo:</label>
+            <input type="text" id="processNumber" aria-required="true">
+        </div>
+        <div>
+            <label for="week">Semana:</label>
+            <select id="week" aria-required="true"></select> <!-- Ensure this is empty; populated by JS -->
+        </div>
+        <div>
+            <label for="day">Dia da Semana:</label>
+            <select id="day" aria-required="true">
+                <option value="Segunda-feira">Segunda-feira</option>
+                <option value="Terça-feira">Terça-feira</option>
+                <option value="Quarta-feira">Quarta-feira</option>
+                <option value="Quinta-feira">Quinta-feira</option>
+                <option value="Sexta-feira">Sexta-feira</option>
+                <option value="Sábado">Sábado</option>
+                <option value="Domingo">Domingo</option>
+            </select>
+        </div>
+        <div>
+            <label for="date">Dia e Mês:</label>
+            <input type="date" id="date" aria-required="true">
+        </div>
+        <div>
+            <label for="time">Hora:</label>
+            <input type="time" id="time" aria-required="true">
+        </div>
+        <div>
+            <label for="rightsDuration">Duração de Direitos:</label>
+            <input type="text" id="rightsDuration" aria-required="true">
+        </div>
+        <div>
+            <label for="programType">Tipo de Programa:</label>
+            <input type="text" id="programType" aria-required="true">
+        </div>
+        <div>
+            <label for="category">Categoria:</label>
+            <select id="category" aria-required="true">
+                <option value="NOVIDADE" class="novidade">NOVIDADE</option>
+                <option value="ESTREIA" class="estreia">ESTREIA</option>
+                <option value="REPETIÇÃO" class="repeticao">REPETIÇÃO</option>
+            </select>
+        </div>
         <div class="form-buttons">
             <button type="submit">Adicionar</button>
             <button type="reset" onclick="clearForm()">Cancelar</button>
         </div>
     </form>
 
-    <!-- Filter section -->
-   <section aria-labelledby="filter-heading">
+    <section aria-labelledby="filter-heading">
         <h2 id="filter-heading">Filtrar por Semana</h2>
         <div class="filter-controls">
-            <select id="filterWeek" onchange="filterByWeek()">
-                <option value="">Selecione uma semana</option>
+            <select id="filterWeek">
+                <option value="">Selecione uma semana</option> <!-- Default option -->
             </select>
             <button onclick="clearFilter()">Limpar Filtro</button>
         </div>
-    </section> 
+    </section>
 
-    <!-- Collections tables -->
     <section aria-labelledby="collections-heading">
         <h2 id="collections-heading">Coleções</h2>
         <div id="collectionsTables">
-            <!-- RTP 1 -->
             <div id="RTP_1Table">
                 <h3>RTP 1</h3>
                 <div class="export-controls">

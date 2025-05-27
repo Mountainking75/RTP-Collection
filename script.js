@@ -92,13 +92,17 @@ function renderAllTables(filterWeek = null) {
 
 function renderTable(collection, filterWeek = null, highlightNew = false) {
     const tableBody = document.getElementById(`${collection.replace(/ /g, '_')}TableBody`);
+    if (!tableBody) {
+        console.error(`Table body not found for ${collection}`);
+        return;
+    }
     tableBody.innerHTML = '';
 
     let entries = filterWeek
         ? collections[collection].filter(entry => entry.week === filterWeek)
         : collections[collection];
 
-    // Sort entries by date (ascending), then by time (ascending)
+    // Sort entries by date, then by time
     entries = entries.sort((a, b) => {
         const dateCompare = new Date(a.date) - new Date(b.date);
         if (dateCompare !== 0) return dateCompare;
@@ -139,14 +143,20 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
 
 // Filter by week
 function filterByWeek() {
+    if (!DOM.filterWeek) {
+        console.error('Filter week dropdown not found');
+        return;
+    }
     const selectedWeek = DOM.filterWeek.value;
     renderAllTables(selectedWeek || null);
 }
 
 // Clear filter
 function clearFilter() {
-    DOM.filterWeek.value = '';
-    renderAllTables(null);
+    if (DOM.filterWeek) {
+        DOM.filterWeek.value = '';
+        renderAllTables(null);
+    }
 }
 
 // Delete entry
@@ -203,7 +213,6 @@ function loadFromLocalStorage() {
 // Export module
 const exportModule = {
     toTxt(entries, collection) {
-        // Sort entries by date, then by time for export
         entries = entries.sort((a, b) => {
             const dateCompare = new Date(a.date) - new Date(b.date);
             if (dateCompare !== 0) return dateCompare;
@@ -229,7 +238,6 @@ const exportModule = {
         link.click();
     },
     toPdf(entries, collection) {
-        // Sort entries by date, then by time for export
         entries = entries.sort((a, b) => {
             const dateCompare = new Date(a.date) - new Date(b.date);
             if (dateCompare !== 0) return dateCompare;
@@ -255,23 +263,22 @@ const exportModule = {
             columnStyles: {
                 8: {
                     cellWidth: 20,
-                    fontStyle: 'bold', // Preserve bold
+                    fontStyle: 'bold',
                     fillColor: entry => {
                         switch (entry) {
-                            case 'NOVIDADE': return [40, 167, 69]; // Green (RGB equivalent of #28a745)
-                            case 'ESTREIA': return [220, 53, 69]; // Red (RGB equivalent of #dc3545)
-                            case 'REPETIÇÃO': return [0, 123, 255]; // Blue (RGB equivalent of #007bff)
-                            default: return [255, 255, 255]; // White for fallback
+                            case 'NOVIDADE': return [40, 167, 69];
+                            case 'ESTREIA': return [220, 53, 69];
+                            case 'REPETIÇÃO': return [0, 123, 255];
+                            default: return [255, 255, 255];
                         }
                     },
-                    textColor: [255, 255, 255] // White text for contrast
+                    textColor: [255, 255, 255]
                 }
             }
         });
         doc.save(`${collection}.pdf`);
     }
-
-
+};
 
 function exportFilteredCollection(collection, filterWeek, formatId) {
     const format = document.getElementById(formatId).value;
@@ -289,7 +296,6 @@ function exportFilteredCollection(collection, filterWeek, formatId) {
         return;
     }
 
-    // Show loader
     const exportButton = document.querySelector(`#${formatId.replace('export-format-', '')}Table button`);
     const loader = document.createElement('span');
     loader.className = 'loader';
@@ -302,7 +308,6 @@ function exportFilteredCollection(collection, filterWeek, formatId) {
         } else {
             exportModule.toPdf(entries, collection);
         }
-        // Remove loader
         exportButton.removeChild(loader);
         exportButton.disabled = false;
         DOM.errorMessages.textContent = '';
@@ -313,17 +318,15 @@ function exportFilteredCollection(collection, filterWeek, formatId) {
 function sortTable(collection, column, thElement) {
     const ascending = thElement.getAttribute('aria-sort') !== 'ascending';
     collections[collection].sort((a, b) => {
-        // Sort by date, then time, then selected column
         const dateCompare = new Date(a.date) - new Date(b.date);
         if (dateCompare !== 0) return dateCompare;
         const timeCompare = a.time.localeCompare(b.time);
         if (timeCompare !== 0) return timeCompare;
         const valA = a[column] || '';
         const valB = b[column] || '';
-        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valB);
     });
 
-    // Update aria-sort for accessibility
     document.querySelectorAll(`#${collection.replace(/ /g, '_')}Table th`).forEach(th => {
         th.setAttribute('aria-sort', 'none');
     });
@@ -335,6 +338,15 @@ function sortTable(collection, column, thElement) {
 
 // Populate dropdowns
 function populateWeeksDropdown() {
+    if (!DOM.week || !DOM.filterWeek) {
+        console.error('Week dropdowns not found');
+        return;
+    }
+
+    // Clear existing options to prevent duplicates
+    DOM.week.innerHTML = '';
+    DOM.filterWeek.innerHTML = '<option value="">Selecione uma semana</option>';
+
     WEEKS.forEach(week => {
         const option1 = document.createElement('option');
         option1.value = week;
@@ -350,6 +362,12 @@ function populateWeeksDropdown() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    if (!DOM.week || !DOM.filterWeek || !DOM.form) {
+        console.error('Critical DOM elements missing');
+        return;
+    }
     populateWeeksDropdown();
     loadFromLocalStorage();
+    // Attach event listener programmatically instead of onchange attribute
+    DOM.filterWeek.addEventListener('change', filterByWeek);
 });
