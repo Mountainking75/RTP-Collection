@@ -33,12 +33,12 @@ const DOM = {
     repeatDays: document.getElementById('repeatDays')
 };
 
-// Calculate date for a given week and day
-function calculateDate(week, day) {
-    // Parse week number (e.g., "Semana 19" -> 19)
+// Validate date against week and day
+function validateDateAgainstWeekAndDay(dateStr, week, day) {
+    const date = new Date(dateStr);
+    const year = date.getFullYear();
     const weekNumber = parseInt(week.split(' ')[1], 10);
-    // Assume year is 2025 (adjustable)
-    const year = 2025;
+
     // Calculate the first day of the year
     const firstDay = new Date(year, 0, 1);
     // Calculate the first Monday of the year
@@ -47,6 +47,7 @@ function calculateDate(week, day) {
     // Calculate the Monday of the target week
     const targetMonday = new Date(firstMonday);
     targetMonday.setDate(firstMonday.getDate() + (weekNumber - 1) * 7);
+
     // Map day to offset (Segunda-feira = 0, Terça-feira = 1, etc.)
     const dayOffsets = {
         'Segunda-feira': 0,
@@ -59,8 +60,30 @@ function calculateDate(week, day) {
     };
     const targetDate = new Date(targetMonday);
     targetDate.setDate(targetMonday.getDate() + dayOffsets[day]);
-    // Format as YYYY-MM-DD
-    return targetDate.toISOString().split('T')[0];
+
+    // Compare dates (ignoring time)
+    return date.toISOString().split('T')[0] === targetDate.toISOString().split('T')[0];
+}
+
+// Compute date for a repeat day within the same week
+function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
+    const primaryDate = new Date(primaryDateStr);
+    const dayOffsets = {
+        'Segunda-feira': 0,
+        'Terça-feira': 1,
+        'Quarta-feira': 2,
+        'Quinta-feira': 3,
+        'Sexta-feira': 4,
+        'Sábado': 5,
+        'Domingo': 6
+    };
+    const primaryOffset = dayOffsets[primaryDay];
+    const repeatOffset = dayOffsets[repeatDay];
+    const dayDifference = repeatOffset - primaryOffset;
+
+    const repeatDate = new Date(primaryDate);
+    repeatDate.setDate(primaryDate.getDate() + dayDifference);
+    return repeatDate.toISOString().split('T')[0];
 }
 
 // Form handling
@@ -86,9 +109,8 @@ function addToCollection() {
     });
 
     // Validate date matches week and day
-    const expectedDate = calculateDate(baseFields.week, baseFields.day);
-    if (baseFields.date !== expectedDate) {
-        errors.push(`Data (${baseFields.date}) não corresponde ao dia (${baseFields.day}) na ${baseFields.week}.`);
+    if (!validateDateAgainstWeekAndDay(baseFields.date, baseFields.week, baseFields.day)) {
+        errors.push(`A data (${baseFields.date}) não corresponde ao dia (${baseFields.day}) na ${baseFields.week}.`);
     }
 
     if (errors.length > 0) {
@@ -105,10 +127,11 @@ function addToCollection() {
             const repeatDay = checkbox.value;
             const timeInput = DOM.repeatDays.querySelector(`input[data-day="${repeatDay}"]`);
             if (timeInput && timeInput.value) {
+                const repeatDate = computeRepeatDate(baseFields.date, baseFields.day, repeatDay);
                 entries.push({
                     ...baseFields,
                     day: repeatDay,
-                    date: calculateDate(baseFields.week, repeatDay),
+                    date: repeatDate,
                     time: timeInput.value
                 });
             }
@@ -122,7 +145,7 @@ function addToCollection() {
 
     // Render with current filter and highlight new entries
     const currentFilterWeek = DOM.filterWeek.value;
-    renderTable(baseFields.collection, currentFilterWeek || null, true);
+    renderTable(baseFields.collection, currentFilterWeek || null, entries.length);
     saveToLocalStorage();
     DOM.form.reset();
     DOM.errorMessages.textContent = '';
@@ -403,7 +426,7 @@ function sortTable(collection, column, thElement) {
     renderTable(collection, currentFilterWeek || null);
 }
 
-// Populate dropdowns
+// Populate weeks dropdown
 function populateWeeksDropdown() {
     if (!DOM.week || !DOM.filterWeek) {
         console.error('Week dropdowns not found');
@@ -434,7 +457,7 @@ function populateRepeatDays() {
     }
     DOM.repeatDays.innerHTML = '';
     DAYS.forEach(day => {
-        if (day !== DOM.day.value) { // Exclude the primary day
+        if (day !== DOM.day.value) {
             const div = document.createElement('div');
             div.className = 'repeat-day';
             div.innerHTML = `
@@ -444,7 +467,6 @@ function populateRepeatDays() {
             `;
             DOM.repeatDays.appendChild(div);
 
-            // Enable/disable time input based on checkbox
             const checkbox = div.querySelector(`#repeat-${day}`);
             const timeInput = div.querySelector(`input[data-day="${day}"]`);
             checkbox.addEventListener('change', () => {
@@ -465,7 +487,6 @@ document.addEventListener('DOMContentLoaded', () => {
     loadFromLocalStorage();
     DOM.filterWeek.addEventListener('change', filterByWeek);
 
-    // Handle repeat section visibility
     DOM.isRepeat.addEventListener('change', () => {
         DOM.repeatSection.style.display = DOM.isRepeat.checked ? 'block' : 'none';
         if (DOM.isRepeat.checked) {
@@ -475,7 +496,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Update repeat days when primary day changes
     DOM.day.addEventListener('change', () => {
         if (DOM.isRepeat.checked) {
             populateRepeatDays();
