@@ -43,11 +43,14 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
     const firstMonday = new Date(firstDay);
     firstMonday.setDate(firstDay.getDate() + ((1 - firstDay.getDay() + 7) % 7));
 
-    // Calculate the total days from the first Monday to the date
-    const diffDays = Math.floor((date - firstMonday) / (1000 * 60 * 60 * 24));
+    // Find the Monday of the date's week
+    const dateMonday = new Date(date);
+    dateMonday.setDate(date.getDate() - ((date.getDay() + 6) % 7)); // Adjust to Monday of that week
+
+    // Calculate the number of days from the first Monday to the date's Monday
+    const diffDays = Math.floor((dateMonday - firstMonday) / (1000 * 60 * 60 * 24));
     // Compute week number (Semana 1 starts on firstMonday)
-    const computedWeekNumber = Math.floor(diffDays / 7) + 1 + (diffDays % 7 >= 0 ? 1 : 0);
-    const expectedWeekNumber = parseInt(week.split(' ')[1], 10);
+    const computedWeekNumber = (diffDays / 7) + 1;
 
     // Calculate the day of the week
     const dayOfWeek = date.getDay();
@@ -64,6 +67,7 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
 
     // Validate
     const errors = [];
+    const expectedWeekNumber = parseInt(week.split(' ')[1], 10);
     if (computedWeekNumber !== expectedWeekNumber) {
         errors.push(`A data (${dateStr}) não corresponde à ${week}. Semana calculada: Semana ${computedWeekNumber}.`);
     }
