@@ -33,36 +33,44 @@ const DOM = {
     repeatDays: document.getElementById('repeatDays')
 };
 
-// Validate date against week and day
+// Compute week number and validate day from date
 function validateDateAgainstWeekAndDay(dateStr, week, day) {
     const date = new Date(dateStr);
     const year = date.getFullYear();
-    const weekNumber = parseInt(week.split(' ')[1], 10);
 
-    // Calculate the first day of the year
-    const firstDay = new Date(year, 0, 1);
     // Calculate the first Monday of the year
+    const firstDay = new Date(year, 0, 1);
     const firstMonday = new Date(firstDay);
     firstMonday.setDate(firstDay.getDate() + ((1 - firstDay.getDay() + 7) % 7));
-    // Calculate the Monday of the target week
-    const targetMonday = new Date(firstMonday);
-    targetMonday.setDate(firstMonday.getDate() + (weekNumber - 1) * 7);
 
-    // Map day to offset (Segunda-feira = 0, Terça-feira = 1, etc.)
-    const dayOffsets = {
-        'Segunda-feira': 0,
-        'Terça-feira': 1,
-        'Quarta-feira': 2,
-        'Quinta-feira': 3,
-        'Sexta-feira': 4,
-        'Sábado': 5,
-        'Domingo': 6
+    // Calculate days from first Monday to the date
+    const diffDays = Math.floor((date - firstMonday) / (1000 * 60 * 60 * 24));
+    // Compute week number (Semana 1 starts on firstMonday)
+    const computedWeekNumber = Math.floor(diffDays / 7) + 1;
+    const expectedWeekNumber = parseInt(week.split(' ')[1], 10);
+
+    // Calculate the day of the week
+    const dayOfWeek = date.getDay();
+    const dayMapping = {
+        1: 'Segunda-feira',
+        2: 'Terça-feira',
+        3: 'Quarta-feira',
+        4: 'Quinta-feira',
+        5: 'Sexta-feira',
+        6: 'Sábado',
+        0: 'Domingo'
     };
-    const targetDate = new Date(targetMonday);
-    targetDate.setDate(targetMonday.getDate() + dayOffsets[day]);
+    const computedDay = dayMapping[dayOfWeek];
 
-    // Compare dates (ignoring time)
-    return date.toISOString().split('T')[0] === targetDate.toISOString().split('T')[0];
+    // Validate
+    const errors = [];
+    if (computedWeekNumber !== expectedWeekNumber) {
+        errors.push(`A data (${dateStr}) não corresponde à ${week}. Semana calculada: Semana ${computedWeekNumber}.`);
+    }
+    if (computedDay !== day) {
+        errors.push(`A data (${dateStr}) não corresponde ao dia (${day}). Dia calculado: ${computedDay}.`);
+    }
+    return errors;
 }
 
 // Compute date for a repeat day within the same week
@@ -109,9 +117,8 @@ function addToCollection() {
     });
 
     // Validate date matches week and day
-    if (!validateDateAgainstWeekAndDay(baseFields.date, baseFields.week, baseFields.day)) {
-        errors.push(`A data (${baseFields.date}) não corresponde ao dia (${baseFields.day}) na ${baseFields.week}.`);
-    }
+    const dateValidationErrors = validateDateAgainstWeekAndDay(baseFields.date, baseFields.week, baseFields.day);
+    errors.push(...dateValidationErrors);
 
     if (errors.length > 0) {
         DOM.errorMessages.textContent = errors.join(' ');
