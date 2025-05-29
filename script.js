@@ -1,6 +1,7 @@
 // Constants for collections and weeks
 const COLLECTIONS = ['RTP 1', 'RTP 2', 'RTP 3', 'RTP Memoria', 'RTP Africa'];
 const WEEKS = Array.from({ length: 52 }, (_, i) => `Semana ${i + 1}`);
+const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
 // Initialize collections
 let collections = {
@@ -26,12 +27,45 @@ const DOM = {
     rightsDuration: document.getElementById('rightsDuration'),
     programType: document.getElementById('programType'),
     category: document.getElementById('category'),
-    filterWeek: document.getElementById('filterWeek')
+    filterWeek: document.getElementById('filterWeek'),
+    isRepeat: document.getElementById('isRepeat'),
+    repeatSection: document.getElementById('repeatSection'),
+    repeatDays: document.getElementById('repeatDays')
 };
+
+// Calculate date for a given week and day
+function calculateDate(week, day) {
+    // Parse week number (e.g., "Semana 19" -> 19)
+    const weekNumber = parseInt(week.split(' ')[1], 10);
+    // Assume year is 2025 (adjustable)
+    const year = 2025;
+    // Calculate the first day of the year
+    const firstDay = new Date(year, 0, 1);
+    // Calculate the first Monday of the year
+    const firstMonday = new Date(firstDay);
+    firstMonday.setDate(firstDay.getDate() + ((1 - firstDay.getDay() + 7) % 7));
+    // Calculate the Monday of the target week
+    const targetMonday = new Date(firstMonday);
+    targetMonday.setDate(firstMonday.getDate() + (weekNumber - 1) * 7);
+    // Map day to offset (Segunda-feira = 0, Terça-feira = 1, etc.)
+    const dayOffsets = {
+        'Segunda-feira': 0,
+        'Terça-feira': 1,
+        'Quarta-feira': 2,
+        'Quinta-feira': 3,
+        'Sexta-feira': 4,
+        'Sábado': 5,
+        'Domingo': 6
+    };
+    const targetDate = new Date(targetMonday);
+    targetDate.setDate(targetMonday.getDate() + dayOffsets[day]);
+    // Format as YYYY-MM-DD
+    return targetDate.toISOString().split('T')[0];
+}
 
 // Form handling
 function addToCollection() {
-    const fields = {
+    const baseFields = {
         collection: DOM.collection.value,
         programName: DOM.programName.value.trim(),
         processNumber: DOM.processNumber.value.trim(),
@@ -45,26 +79,56 @@ function addToCollection() {
     };
 
     // Validate required fields
-    const requiredFields = ['programName', 'processNumber', 'date', 'time', 'rightsDuration', 'programType'];
-    const errors = requiredFields.filter(field => !fields[field]).map(field => {
+    const requiredFields = ['programName', 'processNumber', 'week', 'day', 'date', 'time', 'rightsDuration', 'programType', 'category'];
+    const errors = requiredFields.filter(field => !baseFields[field]).map(field => {
         const label = DOM[field].previousElementSibling.textContent;
         return `${label} é obrigatório.`;
     });
+
+    // Validate date matches week and day
+    const expectedDate = calculateDate(baseFields.week, baseFields.day);
+    if (baseFields.date !== expectedDate) {
+        errors.push(`Data (${baseFields.date}) não corresponde ao dia (${baseFields.day}) na ${baseFields.week}.`);
+    }
 
     if (errors.length > 0) {
         DOM.errorMessages.textContent = errors.join(' ');
         return;
     }
 
-    // Add entry to collection
-    collections[fields.collection].push(fields);
-    // Render with current filter and highlight new entry
+    const entries = [baseFields];
+
+    // Handle repeats
+    if (DOM.isRepeat.checked) {
+        const repeatCheckboxes = DOM.repeatDays.querySelectorAll('input[type="checkbox"]:checked');
+        repeatCheckboxes.forEach(checkbox => {
+            const repeatDay = checkbox.value;
+            const timeInput = DOM.repeatDays.querySelector(`input[data-day="${repeatDay}"]`);
+            if (timeInput && timeInput.value) {
+                entries.push({
+                    ...baseFields,
+                    day: repeatDay,
+                    date: calculateDate(baseFields.week, repeatDay),
+                    time: timeInput.value
+                });
+            }
+        });
+    }
+
+    // Add entries to collection
+    entries.forEach(entry => {
+        collections[entry.collection].push(entry);
+    });
+
+    // Render with current filter and highlight new entries
     const currentFilterWeek = DOM.filterWeek.value;
-    renderTable(fields.collection, currentFilterWeek || null, true);
+    renderTable(baseFields.collection, currentFilterWeek || null, true);
     saveToLocalStorage();
     DOM.form.reset();
     DOM.errorMessages.textContent = '';
-    showNotification('Entrada adicionada com sucesso!');
+    DOM.isRepeat.checked = false;
+    DOM.repeatSection.style.display = 'none';
+    showNotification(`Adicionadas ${entries.length} entrada(s) com sucesso!`);
 }
 
 // Show notification
@@ -83,6 +147,8 @@ function showNotification(message) {
 function clearForm() {
     DOM.form.reset();
     DOM.errorMessages.textContent = '';
+    DOM.isRepeat.checked = false;
+    DOM.repeatSection.style.display = 'none';
 }
 
 // Table rendering
@@ -102,7 +168,6 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
         ? collections[collection].filter(entry => entry.week === filterWeek)
         : collections[collection];
 
-    // Sort entries by date, then by time
     entries = entries.sort((a, b) => {
         const dateCompare = new Date(a.date) - new Date(b.date);
         if (dateCompare !== 0) return dateCompare;
@@ -116,7 +181,7 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
 
     entries.forEach((entry, index) => {
         const row = document.createElement('tr');
-        if (highlightNew && index === entries.length - 1) {
+        if (highlightNew && index >= entries.length - (highlightNew === true ? 1 : highlightNew)) {
             row.classList.add('highlight');
             setTimeout(() => {
                 row.classList.remove('highlight');
@@ -186,6 +251,8 @@ function editEntry(collection, index) {
     DOM.rightsDuration.value = entry.rightsDuration;
     DOM.programType.value = entry.programType;
     DOM.category.value = entry.category;
+    DOM.isRepeat.checked = false;
+    DOM.repeatSection.style.display = 'none';
     deleteEntry(collection, index);
 }
 
@@ -343,7 +410,6 @@ function populateWeeksDropdown() {
         return;
     }
 
-    // Clear existing options to prevent duplicates
     DOM.week.innerHTML = '';
     DOM.filterWeek.innerHTML = '<option value="">Selecione uma semana</option>';
 
@@ -360,14 +426,59 @@ function populateWeeksDropdown() {
     });
 }
 
+// Populate repeat days
+function populateRepeatDays() {
+    if (!DOM.repeatDays) {
+        console.error('Repeat days container not found');
+        return;
+    }
+    DOM.repeatDays.innerHTML = '';
+    DAYS.forEach(day => {
+        if (day !== DOM.day.value) { // Exclude the primary day
+            const div = document.createElement('div');
+            div.className = 'repeat-day';
+            div.innerHTML = `
+                <label for="repeat-${day}">${day}</label>
+                <input type="checkbox" id="repeat-${day}" value="${day}">
+                <input type="time" data-day="${day}" disabled>
+            `;
+            DOM.repeatDays.appendChild(div);
+
+            // Enable/disable time input based on checkbox
+            const checkbox = div.querySelector(`#repeat-${day}`);
+            const timeInput = div.querySelector(`input[data-day="${day}"]`);
+            checkbox.addEventListener('change', () => {
+                timeInput.disabled = !checkbox.checked;
+                if (!checkbox.checked) timeInput.value = '';
+            });
+        }
+    });
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    if (!DOM.week || !DOM.filterWeek || !DOM.form) {
+    if (!DOM.week || !DOM.filterWeek || !DOM.form || !DOM.isRepeat || !DOM.repeatSection) {
         console.error('Critical DOM elements missing');
         return;
     }
     populateWeeksDropdown();
     loadFromLocalStorage();
-    // Attach event listener programmatically instead of onchange attribute
     DOM.filterWeek.addEventListener('change', filterByWeek);
+
+    // Handle repeat section visibility
+    DOM.isRepeat.addEventListener('change', () => {
+        DOM.repeatSection.style.display = DOM.isRepeat.checked ? 'block' : 'none';
+        if (DOM.isRepeat.checked) {
+            populateRepeatDays();
+        } else {
+            DOM.repeatDays.innerHTML = '';
+        }
+    });
+
+    // Update repeat days when primary day changes
+    DOM.day.addEventListener('change', () => {
+        if (DOM.isRepeat.checked) {
+            populateRepeatDays();
+        }
+    });
 });

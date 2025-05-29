@@ -5,10 +5,9 @@
     --primary-color: #007bff;
     --success-color: #28a745;
     --highlight-color: #d4edda;
-    /* Define category background colors */
-    --novidade-bg: #28a745; /* Green */
-    --estreia-bg: #dc3545; /* Red */
-    --repeticao-bg: #007bff; /* Blue */
+    --novidade-bg: #28a745;
+    --estreia-bg: #dc3545;
+    --repeticao-bg: #007bff;
 }
 
 /* General styling */
@@ -93,6 +92,33 @@ button:disabled {
     font-size: 0.9em;
 }
 
+/* Repeat section styling */
+#repeatSection {
+    border: 1px solid var(--border-color);
+    padding: var(--spacing);
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.repeat-day {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing);
+    margin-bottom: var(--spacing);
+}
+
+.repeat-day label {
+    flex: 0 0 120px;
+}
+
+.repeat-day input[type="checkbox"] {
+    width: auto;
+}
+
+.repeat-day input[type="time"] {
+    flex: 1;
+}
+
 /* Table styling */
 table {
     width: 100%;
@@ -124,31 +150,29 @@ tr.highlight {
     transition: background-color 2s ease-out;
 }
 
-/* Category styling with background colors, bold text, and white text for contrast */
+/* Category styling */
 .novidade {
     background-color: var(--novidade-bg);
-    color: white; /* Changed to white for contrast */
+    color: white;
     font-weight: bold;
 }
 
 .estreia {
     background-color: var(--estreia-bg);
-    color: white; /* Changed to white for contrast */
+    color: white;
     font-weight: bold;
 }
 
 .repeticao {
     background-color: var(--repeticao-bg);
-    color: white; /* Changed to white for contrast */
+    color: white;
     font-weight: bold;
 }
 
-/* Style category dropdown options */
 #category option {
     font-weight: bold;
 }
 
-/* Style selected option in dropdown (limited browser support) */
 #category option.novidade {
     background-color: var(--novidade-bg);
     color: white;
@@ -216,5 +240,9 @@ tr.highlight {
     .notification {
         width: calc(100% - 2 * var(--spacing));
         right: var(--spacing);
+    }
+    .repeat-day {
+        flex-direction: column;
+        align-items: flex-start;
     }
 }
