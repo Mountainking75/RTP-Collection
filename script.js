@@ -38,19 +38,17 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
     const date = new Date(dateStr);
     const year = date.getFullYear();
 
-    // Calculate the first Monday of the year
-    const firstDay = new Date(year, 0, 1);
-    const firstMonday = new Date(firstDay);
-    firstMonday.setDate(firstDay.getDate() + ((1 - firstDay.getDay() + 7) % 7));
+    // Define the start of Semana 1 as December 30 of the previous year
+    const semana1Start = new Date(year - 1, 11, 30); // December 30 of the previous year
 
     // Find the Monday of the date's week
     const dateMonday = new Date(date);
-    dateMonday.setDate(date.getDate() - ((date.getDay() + 6) % 7)); // Adjust to Monday of that week
+    dateMonday.setDate(date.getDate() - ((date.getDay() + 6) % 7)); // Adjust to Monday
 
-    // Calculate the number of days from the first Monday to the date's Monday
-    const diffDays = Math.floor((dateMonday - firstMonday) / (1000 * 60 * 60 * 24));
-    // Compute week number (Semana 1 starts on firstMonday)
-    const computedWeekNumber = (diffDays / 7) + 1;
+    // Calculate the number of days from Semana 1 start to the date's Monday
+    const diffDays = Math.floor((dateMonday - semana1Start) / (1000 * 60 * 60 * 24));
+    // Compute week number (Semana 1 starts on December 30 of the previous year)
+    const computedWeekNumber = Math.floor(diffDays / 7) + 1;
 
     // Calculate the day of the week
     const dayOfWeek = date.getDay();
