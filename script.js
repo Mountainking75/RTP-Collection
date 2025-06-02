@@ -228,7 +228,7 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
             <td>${entry.time}</td>
             <td>${entry.rightsDuration}</td>
             <td>${entry.programType}</td>
-            <td class="${entry.category.toLowerCase()}">${entry.category}</td>
+            <td class="${entry.category.toLowerCase()}"><span style="color: black;">${entry.category}</span></td>
             <td>
                 <button onclick="editEntry('${collection}', ${index})" aria-label="Editar entrada">Editar</button>
                 <button onclick="confirmDelete('${collection}', ${index})" aria-label="Excluir entrada">Excluir</button>
@@ -357,21 +357,21 @@ const exportModule = {
                 entry.programType,
                 entry.category
             ]),
-            styles: { fontSize: 8 },
-            headStyles: { fillColor: [200, 200, 200] },
+            styles: { fontSize: 8, textColor: [0, 0, 0] }, // Black text
+            headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0] },
             columnStyles: {
                 8: {
                     cellWidth: 20,
                     fontStyle: 'bold',
                     fillColor: entry => {
-                        switch (entry) {
-                            case 'NOVIDADE': return [40, 167, 69];
-                            case 'ESTREIA': return [220, 53, 69];
-                            case 'REPETIÇÃO': return [0, 123, 255];
-                            default: return [255, 255, 255];
+                        switch (entry.toUpperCase()) {
+                            case 'NOVIDADE': return [40, 167, 69]; // Green
+                            case 'ESTREIA': return [220, 53, 69];  // Red
+                            case 'REPETIÇÃO': return [0, 123, 255]; // Blue
+                            default: return [255, 255, 255];       // White
                         }
                     },
-                    textColor: [255, 255, 255]
+                    textColor: [0, 0, 0] // Black text
                 }
             }
         });
