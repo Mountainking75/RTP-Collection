@@ -39,15 +39,22 @@ function getBroadcastInfo(entry) {
     const [hours, minutes] = entry.time.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes;
 
-    // Adjust date if time is between 00:00 and 05:59 (previous broadcast day)
-    let adjustedDate = new Date(date);
+    // For display, adjust day if time is between 00:00 and 05:59 (previous broadcast day)
     let broadcastDayIndex = date.getDay();
-    if (totalMinutes < 6 * 60) {
-        adjustedDate.setDate(date.getDate() - 1);
-        broadcastDayIndex = (broadcastDayIndex - 1 + 7) % 7; // Adjust day index
+    if (totalMinutes < 6 * 60 && broadcastDayIndex === 0) {
+        broadcastDayIndex = 6; // If Sunday and before 6 AM, use Saturday as broadcast day
+    } else if (totalMinutes < 6 * 60) {
+        broadcastDayIndex = (broadcastDayIndex - 1 + 7) % 7; // Previous day for broadcast
     }
 
     const broadcastDay = DAYS[broadcastDayIndex];
+
+    // For sorting, use the original date unless it's before 6 AM on a new day
+    let adjustedDate = new Date(date);
+    if (totalMinutes < 6 * 60) {
+        adjustedDate.setDate(date.getDate() - 1); // Shift to previous day for sorting
+    }
+
     return {
         adjustedDate: adjustedDate,
         broadcastDay: broadcastDay,
@@ -62,10 +69,10 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
     const totalMinutes = hours * 60 + minutes;
     const year = date.getFullYear();
 
-    // Adjust date for broadcast day if time is between 00:00 and 05:59
+    // Adjust date for broadcast day validation if time is between 00:00 and 05:59
     let adjustedDate = new Date(date);
     if (totalMinutes < 6 * 60) {
-        adjustedDate.setDate(date.getDate() - 1);
+        adjustedDate.setDate(date.getDate() - 1); // Shift to previous day
     }
 
     // Define the start of Semana 1 as December 30 of the previous year
@@ -81,7 +88,12 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
     const computedWeekNumber = Math.floor(diffDays / 7) + 1;
 
     // Calculate the broadcast day of the week
-    const dayOfWeek = adjustedDate.getDay();
+    let dayOfWeek = adjustedDate.getDay();
+    if (totalMinutes < 6 * 60 && dayOfWeek === 0) {
+        dayOfWeek = 6; // Special case for Sunday transitioning to Saturday
+    } else if (totalMinutes < 6 * 60) {
+        dayOfWeek = (dayOfWeek - 1 + 7) % 7;
+    }
     const dayMapping = {
         1: 'Segunda-feira',
         2: 'Terça-feira',
@@ -114,7 +126,7 @@ function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
     // Adjust primary date for broadcast day
     let adjustedPrimaryDate = new Date(primaryDate);
     if (totalMinutes < 6 * 60) {
-        adjustedPrimaryDate.setDate(primaryDate.getDate() - 1);
+        adjustedPrimaryDate.setDate(primaryDate.getDate() - 1); // Shift to previous day
     }
 
     const dayOffsets = {
