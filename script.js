@@ -39,20 +39,22 @@ function getBroadcastInfo(entry) {
     const [hours, minutes] = entry.time.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes;
 
-    // For display, adjust day if time is between 00:00 and 05:59 (previous broadcast day)
-    let broadcastDayIndex = date.getDay();
-    if (totalMinutes < 6 * 60 && broadcastDayIndex === 0) {
-        broadcastDayIndex = 6; // If Sunday and before 6 AM, use Saturday as broadcast day
-    } else if (totalMinutes < 6 * 60) {
-        broadcastDayIndex = (broadcastDayIndex - 1 + 7) % 7; // Previous day for broadcast
+    // For display, use the entered day if it's "Domingo," otherwise adjust based on time
+    let broadcastDay = entry.day;
+    if (broadcastDay !== 'Domingo' && totalMinutes < 6 * 60) {
+        const dayIndex = (date.getDay() - 1 + 7) % 7;
+        broadcastDay = DAYS[dayIndex];
     }
 
-    const broadcastDay = DAYS[broadcastDayIndex];
-
-    // For sorting, use the original date unless it's before 6 AM on a new day
+    // For sorting, adjust date and time to reflect broadcast day (06:00 to 05:59)
     let adjustedDate = new Date(date);
     if (totalMinutes < 6 * 60) {
         adjustedDate.setDate(date.getDate() - 1); // Shift to previous day for sorting
+    }
+    // For Sunday, ensure 00:00-05:59 is treated as part of the previous broadcast day
+    if (entry.day === 'Domingo' && totalMinutes < 6 * 60) {
+        adjustedDate.setDate(date.getDate() - 1); // Keep it as part of Sunday
+        broadcastDay = 'Domingo'; // Override to keep as Sunday
     }
 
     return {
@@ -71,8 +73,11 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
 
     // Adjust date for broadcast day validation if time is between 00:00 and 05:59
     let adjustedDate = new Date(date);
-    if (totalMinutes < 6 * 60) {
+    if (totalMinutes < 6 * 60 && day !== 'Domingo') {
         adjustedDate.setDate(date.getDate() - 1); // Shift to previous day
+    } else if (day === 'Domingo' && totalMinutes < 6 * 60) {
+        // For Sunday, keep the date but validate as part of Sunday's broadcast
+        adjustedDate = new Date(date); // No shift for Sunday
     }
 
     // Define the start of Semana 1 as December 30 of the previous year
@@ -89,10 +94,10 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
 
     // Calculate the broadcast day of the week
     let dayOfWeek = adjustedDate.getDay();
-    if (totalMinutes < 6 * 60 && dayOfWeek === 0) {
-        dayOfWeek = 6; // Special case for Sunday transitioning to Saturday
-    } else if (totalMinutes < 6 * 60) {
+    if (totalMinutes < 6 * 60 && day !== 'Domingo') {
         dayOfWeek = (dayOfWeek - 1 + 7) % 7;
+    } else if (day === 'Domingo' && totalMinutes < 6 * 60) {
+        dayOfWeek = 0; // Force to Sunday
     }
     const dayMapping = {
         1: 'Segunda-feira',
@@ -125,8 +130,10 @@ function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
 
     // Adjust primary date for broadcast day
     let adjustedPrimaryDate = new Date(primaryDate);
-    if (totalMinutes < 6 * 60) {
+    if (totalMinutes < 6 * 60 && primaryDay !== 'Domingo') {
         adjustedPrimaryDate.setDate(primaryDate.getDate() - 1); // Shift to previous day
+    } else if (primaryDay === 'Domingo' && totalMinutes < 6 * 60) {
+        adjustedPrimaryDate = new Date(primaryDate); // Keep as is for Sunday
     }
 
     const dayOffsets = {
@@ -148,8 +155,10 @@ function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
 
     // If the repeat time is before 06:00, adjust the date back one day to align with broadcast logic
     const repeatTimeMinutes = totalMinutes; // Assuming same time for repeat
-    if (repeatTimeMinutes < 6 * 60) {
+    if (repeatTimeMinutes < 6 * 60 && repeatDay !== 'Domingo') {
         repeatDate.setDate(repeatDate.getDate() - 1);
+    } else if (repeatDay === 'Domingo' && repeatTimeMinutes < 6 * 60) {
+        // No adjustment for Sunday
     }
 
     return repeatDate.toISOString().split('T')[0];
@@ -259,7 +268,7 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
         ? collections[collection].filter(entry => entry.week === filterWeek)
         : collections[collection];
 
-    // Sort entries by adjusted broadcast date and time
+    // Sort entries by adjusted broadcast date and time, with special handling for Sunday
     entries = entries.sort((a, b) => {
         const aBroadcast = getBroadcastInfo(a);
         const bBroadcast = getBroadcastInfo(b);
@@ -267,6 +276,11 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
         const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
         if (dateCompare !== 0) return dateCompare;
 
+        // For Sunday, ensure 00:00-05:59 appears at the end
+        if (a.day === 'Domingo' && b.day === 'Domingo') {
+            if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
+            if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
+        }
         return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
     });
 
@@ -384,6 +398,11 @@ const exportModule = {
             const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
             if (dateCompare !== 0) return dateCompare;
 
+            // For Sunday, ensure 00:00-05:59 appears at the end
+            if (a.day === 'Domingo' && b.day === 'Domingo') {
+                if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
+                if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
+            }
             return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
         });
         let content = '';
@@ -413,6 +432,11 @@ const exportModule = {
             const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
             if (dateCompare !== 0) return dateCompare;
 
+            // For Sunday, ensure 00:00-05:59 appears at the end
+            if (a.day === 'Domingo' && b.day === 'Domingo') {
+                if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
+                if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
+            }
             return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
         });
         const { jsPDF } = window.jspdf;
@@ -496,12 +520,12 @@ function sortTable(collection, column, thElement) {
         const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
         if (dateCompare !== 0) return dateCompare;
 
-        const timeCompare = aBroadcast.totalMinutes - bBroadcast.totalMinutes;
-        if (timeCompare !== 0) return timeCompare;
-
-        const valA = a[column] || '';
-        const valB = b[column] || '';
-        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valA);
+        // For Sunday, ensure 00:00-05:59 appears at the end
+        if (a.day === 'Domingo' && b.day === 'Domingo') {
+            if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
+            if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
+        }
+        return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
     });
 
     document.querySelectorAll(`#${collection.replace(/ /g, '_')}Table th`).forEach(th => {
