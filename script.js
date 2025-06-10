@@ -1,38 +1,3 @@
-// Constants for collections and weeks
-const COLLECTIONS = ['RTP 1', 'RTP 2', 'RTP 3', 'RTP Memoria', 'RTP Africa'];
-const WEEKS = Array.from({ length: 52 }, (_, i) => `Semana ${i + 1}`);
-const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
-
-// Initialize collections
-let collections = {
-    'RTP 1': [],
-    'RTP 2': [],
-    'RTP 3': [],
-    'RTP Memoria': [],
-    'RTP Africa': []
-};
-
-// Cache DOM elements
-const DOM = {
-    form: document.getElementById('form'),
-    errorMessages: document.getElementById('errorMessages'),
-    notification: document.getElementById('notification'),
-    collection: document.getElementById('collection'),
-    programName: document.getElementById('programName'),
-    processNumber: document.getElementById('processNumber'),
-    week: document.getElementById('week'),
-    day: document.getElementById('day'),
-    date: document.getElementById('date'),
-    time: document.getElementById('time'),
-    rightsDuration: document.getElementById('rightsDuration'),
-    programType: document.getElementById('programType'),
-    category: document.getElementById('category'),
-    filterWeek: document.getElementById('filterWeek'),
-    isRepeat: document.getElementById('isRepeat'),
-    repeatSection: document.getElementById('repeatSection'),
-    repeatDays: document.getElementById('repeatDays')
-};
-
 // Helper function to compute the broadcast date, day, and time for sorting and display
 function getBroadcastInfo(entry) {
     const date = new Date(entry.date);
@@ -46,15 +11,10 @@ function getBroadcastInfo(entry) {
         broadcastDay = DAYS[dayIndex];
     }
 
-    // For sorting, adjust date and time to reflect broadcast day (06:00 to 05:59)
+    // For sorting, adjust date to reflect broadcast day (06:00 to 05:59)
     let adjustedDate = new Date(date);
     if (totalMinutes < 6 * 60) {
         adjustedDate.setDate(date.getDate() - 1); // Shift to previous day for sorting
-    }
-    // For Sunday, ensure 00:00-05:59 is treated as part of the previous broadcast day
-    if (entry.day === 'Domingo' && totalMinutes < 6 * 60) {
-        adjustedDate.setDate(date.getDate() - 1); // Keep it as part of Sunday
-        broadcastDay = 'Domingo'; // Override to keep as Sunday
     }
 
     return {
@@ -77,7 +37,7 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
         adjustedDate.setDate(date.getDate() - 1); // Shift to previous day
     } else if (day === 'Domingo' && totalMinutes < 6 * 60) {
         // For Sunday, keep the date but validate as part of Sunday's broadcast
-        adjustedDate = new Date(date); // No shift for Sunday
+        adjustedDate = new Date(date); // No shift
     }
 
     // Define the start of Semana 1 as December 30 of the previous year
@@ -164,61 +124,174 @@ function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
     return repeatDate.toISOString().split('T')[0];
 }
 
-// Form handling
-function addToCollection() {
-    const baseFields = {
-        collection: DOM.collection.value,
-        programName: DOM.programName.value.trim(),
-        processNumber: DOM.processNumber.value.trim(),
-        week: DOM.week.value,
-        day: DOM.day.value,
-        date: DOM.date.value,
-        time: DOM.time.value,
-        rightsDuration: DOM.rightsDuration.value.trim(),
-        programType: DOM.programType.value.trim(),
-        category: DOM.category.value
-    };
+// Table rendering
+function renderTable(collection, filterWeek = null, highlightNew = false) {
+    const tableBody = document.getElementById(`${collection.replace(/ /g, '_')}TableBody`);
+    if (!tableBody) {
+        console.error(`Table body not found for ${collection}`);
+        return;
+    }
+    tableBody.innerHTML = '';
 
-    // Validate required fields
-    const requiredFields = ['programName', 'processNumber', 'week', 'day', 'date', 'time', 'rightsDuration', 'programType', 'category'];
-    const errors = requiredFields.filter(field => !baseFields[field]).map(field => {
-        const label = DOM[field].previousElementSibling.textContent;
-        return `${label} é obrigatório.`;
+    let entries = filterWeek
+        ? collections[collection].filter(entry => entry.week === filterWeek)
+        : collections[collection];
+
+    // Sort entries by adjusted broadcast date and time, with 00:00-05:59 at the end of the broadcast day
+    entries = entries.sort((a, b) => {
+        const aBroadcast = getBroadcastInfo(a);
+        const bBroadcast = getBroadcastInfo(b);
+
+        const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
+        if (dateCompare !== 0) return dateCompare;
+
+        // Place 00:00-05:59 at the end of the broadcast day
+        if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
+        if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
+        return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
     });
 
-    // Validate date matches week and day based on broadcast day
-    const dateValidationErrors = validateDateAgainstWeekAndDay(baseFields.date, baseFields.week, baseFields.day);
-    errors.push(...dateValidationErrors);
-
-    if (errors.length > 0) {
-        DOM.errorMessages.textContent = errors.join(' ');
+    if (entries.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="10" class="no-results">Nenhuma entrada encontrada.</td></tr>`;
         return;
     }
 
-    const entries = [baseFields];
+    entries.forEach((entry, index) => {
+        const broadcastInfo = getBroadcastInfo(entry);
+        const row = document.createElement('tr');
+        if (highlightNew && index >= entries.length - (highlightNew === true ? 1 : highlightNew)) {
+            row.classList.add('highlight');
+            setTimeout(() => {
+                row.classList.remove('highlight');
+            }, 2000);
+        }
+        row.innerHTML = `
+            <td>${entry.programName}</td>
+            <td>${entry.processNumber}</td>
+            <td>${entry.week}</td>
+            <td>${broadcastInfo.broadcastDay}</td>
+            <td>${entry.date}</td>
+            <td>${entry.time}</td>
+            <td>${entry.rightsDuration}</td>
+            <td>${entry.programType}</td>
+            <td class="${entry.category.toLowerCase()}"><span style="color: black;">${entry.category}</span></td>
+            <td>
+                <button onclick="editEntry('${collection}', ${index})" aria-label="Editar entrada">Editar</button>
+                <button onclick="confirmDelete('${collection}', ${index})" aria-label="Excluir entrada">Excluir</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
 
-    // Handle repeats
-    if (DOM.isRepeat.checked) {
-        const repeatCheckboxes = DOM.repeatDays.querySelectorAll('input[type="checkbox"]:checked');
-        repeatCheckboxes.forEach(checkbox => {
-            const repeatDay = checkbox.value;
-            const timeInput = DOM.repeatDays.querySelector(`input[data-day="${repeatDay}"]`);
-            if (timeInput && timeInput.value) {
-                const repeatDate = computeRepeatDate(baseFields.date, baseFields.day, repeatDay);
-                entries.push({
-                    ...baseFields,
-                    day: repeatDay,
-                    date: repeatDate,
-                    time: timeInput.value
-                });
+// Export module
+const exportModule = {
+    toTxt(entries, collection) {
+        entries = entries.sort((a, b) => {
+            const aBroadcast = getBroadcastInfo(a);
+            const bBroadcast = getBroadcastInfo(b);
+
+            const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
+            if (dateCompare !== 0) return dateCompare;
+
+            // Place 00:00-05:59 at the end of the broadcast day
+            if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
+            if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
+            return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+        });
+        let content = '';
+        entries.forEach(entry => {
+            content += `**Nome do Programa**: ${entry.programName}\n`;
+            content += `**Número de Processo**: ${entry.processNumber}\n`;
+            content += `Semana: ${entry.week}\n`;
+            content += `Dia: ${getBroadcastInfo(entry).broadcastDay}\n`; // Use broadcast day
+            content += `Data: ${entry.date}\n`;
+            content += `Hora: ${entry.time}\n`;
+            content += `Duração dos Direitos: ${entry.rightsDuration}\n`;
+            content += `Tipo de Programa: ${entry.programType}\n`;
+            content += `**Categoria**: ${entry.category}\n`;
+            content += `-----------------------------\n`;
+        });
+        const blob = new Blob([content], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `${collection}.txt`;
+        link.click();
+    },
+    toPdf(entries, collection) {
+        entries = entries.sort((a, b) => {
+            const aBroadcast = getBroadcastInfo(a);
+            const bBroadcast = getBroadcastInfo(b);
+
+            const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
+            if (dateCompare !== 0) return dateCompare;
+
+            // Place 00:00-05:59 at the end of the broadcast day
+            if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
+            if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
+            return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+        });
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.autoTable({
+            head: [['Nome do Programa', 'Número de Processo', 'Semana', 'Dia', 'Data', 'Hora', 'Duração dos Direitos', 'Tipo de Programa', 'Categoria']],
+            body: entries.map(entry => [
+                entry.programName,
+                entry.processNumber,
+                entry.week,
+                getBroadcastInfo(entry).broadcastDay, // Use broadcast day
+                entry.date,
+                entry.time,
+                entry.rightsDuration,
+                entry.programType,
+                entry.category
+            ]),
+            styles: { fontSize: 8, textColor: [0, 0, 0] }, // Black text
+            headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0] },
+            columnStyles: {
+                8: {
+                    cellWidth: 20,
+                    fontStyle: 'bold',
+                    fillColor: entry => {
+                        switch (entry.toUpperCase()) {
+                            case 'NOVIDADE': return [40, 167, 69]; // Green
+                            case 'ESTREIA': return [220, 53, 69];  // Red
+                            case 'REPETIÇÃO': return [0, 123, 255]; // Blue
+                            default: return [255, 255, 255];       // White
+                        }
+                    },
+                    textColor: [0, 0, 0] // Black text
+                }
             }
         });
+        doc.save(`${collection}.pdf`);
     }
+};
 
-    // Add entries to collection
-    entries.forEach(entry => {
-        collections[entry.collection].push(entry);
+// Table sorting
+function sortTable(collection, column, thElement) {
+    const ascending = thElement.getAttribute('aria-sort') !== 'ascending';
+    collections[collection].sort((a, b) => {
+        const aBroadcast = getBroadcastInfo(a);
+        const bBroadcast = getBroadcastInfo(b);
+
+        const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
+        if (dateCompare !== 0) return dateCompare;
+
+        // Place 00:00-05:59 at the end of the broadcast day
+        if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
+        if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
+        return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
     });
+
+    document.querySelectorAll(`#${collection.replace(/ /g, '_')}Table th`).forEach(th => {
+        th.setAttribute('aria-sort', 'none');
+    });
+    thElement.setAttribute('aria-sort', ascending ? 'ascending' : 'descending');
+
+    const currentFilterWeek = DOM.filterWeek.value;
+    renderTable(collection, currentFilterWeek || null);
+}
 
     // Render with current filter and highlight new entries
     const currentFilterWeek = DOM.filterWeek.value;
