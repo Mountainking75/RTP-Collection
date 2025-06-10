@@ -33,25 +33,55 @@ const DOM = {
     repeatDays: document.getElementById('repeatDays')
 };
 
-// Compute week number and validate day from date
+// Helper function to compute the broadcast date, day, and time for sorting and display
+function getBroadcastInfo(entry) {
+    const date = new Date(entry.date);
+    const [hours, minutes] = entry.time.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+
+    // Adjust date if time is between 00:00 and 05:59 (previous broadcast day)
+    let adjustedDate = new Date(date);
+    let broadcastDayIndex = date.getDay();
+    if (totalMinutes < 6 * 60) {
+        adjustedDate.setDate(date.getDate() - 1);
+        broadcastDayIndex = (broadcastDayIndex - 1 + 7) % 7; // Adjust day index
+    }
+
+    const broadcastDay = DAYS[broadcastDayIndex];
+    return {
+        adjustedDate: adjustedDate,
+        broadcastDay: broadcastDay,
+        totalMinutes: totalMinutes
+    };
+}
+
+// Compute week number and validate day from date based on broadcast day
 function validateDateAgainstWeekAndDay(dateStr, week, day) {
     const date = new Date(dateStr);
+    const [hours, minutes] = DOM.time.value.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
     const year = date.getFullYear();
+
+    // Adjust date for broadcast day if time is between 00:00 and 05:59
+    let adjustedDate = new Date(date);
+    if (totalMinutes < 6 * 60) {
+        adjustedDate.setDate(date.getDate() - 1);
+    }
 
     // Define the start of Semana 1 as December 30 of the previous year
     const semana1Start = new Date(year - 1, 11, 30); // December 30 of the previous year
 
-    // Find the Monday of the date's week
-    const dateMonday = new Date(date);
-    dateMonday.setDate(date.getDate() - ((date.getDay() + 6) % 7)); // Adjust to Monday
+    // Find the Monday of the adjusted date's week
+    const dateMonday = new Date(adjustedDate);
+    dateMonday.setDate(adjustedDate.getDate() - ((adjustedDate.getDay() + 6) % 7)); // Adjust to Monday
 
-    // Calculate the number of days from Semana 1 start to the date's Monday
+    // Calculate the number of days from Semana 1 start to the adjusted date's Monday
     const diffDays = Math.floor((dateMonday - semana1Start) / (1000 * 60 * 60 * 24));
     // Compute week number (Semana 1 starts on December 30 of the previous year)
     const computedWeekNumber = Math.floor(diffDays / 7) + 1;
 
-    // Calculate the day of the week
-    const dayOfWeek = date.getDay();
+    // Calculate the broadcast day of the week
+    const dayOfWeek = adjustedDate.getDay();
     const dayMapping = {
         1: 'Segunda-feira',
         2: 'Terça-feira',
@@ -67,17 +97,26 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
     const errors = [];
     const expectedWeekNumber = parseInt(week.split(' ')[1], 10);
     if (computedWeekNumber !== expectedWeekNumber) {
-        errors.push(`A data (${dateStr}) não corresponde à ${week}. Semana calculada: Semana ${computedWeekNumber}.`);
+        errors.push(`A data (${dateStr} às ${DOM.time.value}) não corresponde à ${week}. Semana calculada: Semana ${computedWeekNumber}.`);
     }
     if (computedDay !== day) {
-        errors.push(`A data (${dateStr}) não corresponde ao dia (${day}). Dia calculado: ${computedDay}.`);
+        errors.push(`A data (${dateStr} às ${DOM.time.value}) não corresponde ao dia (${day}). Dia calculado: ${computedDay}.`);
     }
     return errors;
 }
 
-// Compute date for a repeat day within the same week
+// Compute date for a repeat day within the same broadcast week
 function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
     const primaryDate = new Date(primaryDateStr);
+    const [hours, minutes] = DOM.time.value.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+
+    // Adjust primary date for broadcast day
+    let adjustedPrimaryDate = new Date(primaryDate);
+    if (totalMinutes < 6 * 60) {
+        adjustedPrimaryDate.setDate(primaryDate.getDate() - 1);
+    }
+
     const dayOffsets = {
         'Segunda-feira': 0,
         'Terça-feira': 1,
@@ -89,10 +128,18 @@ function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
     };
     const primaryOffset = dayOffsets[primaryDay];
     const repeatOffset = dayOffsets[repeatDay];
-    const dayDifference = repeatOffset - primaryOffset;
+    let dayDifference = (repeatOffset - primaryOffset + 7) % 7;
 
-    const repeatDate = new Date(primaryDate);
-    repeatDate.setDate(primaryDate.getDate() + dayDifference);
+    // Adjust for broadcast day wrap-around
+    const repeatDate = new Date(adjustedPrimaryDate);
+    repeatDate.setDate(adjustedPrimaryDate.getDate() + dayDifference);
+
+    // If the repeat time is before 06:00, adjust the date back one day to align with broadcast logic
+    const repeatTimeMinutes = totalMinutes; // Assuming same time for repeat
+    if (repeatTimeMinutes < 6 * 60) {
+        repeatDate.setDate(repeatDate.getDate() - 1);
+    }
+
     return repeatDate.toISOString().split('T')[0];
 }
 
@@ -118,7 +165,7 @@ function addToCollection() {
         return `${label} é obrigatório.`;
     });
 
-    // Validate date matches week and day
+    // Validate date matches week and day based on broadcast day
     const dateValidationErrors = validateDateAgainstWeekAndDay(baseFields.date, baseFields.week, baseFields.day);
     errors.push(...dateValidationErrors);
 
@@ -200,10 +247,15 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
         ? collections[collection].filter(entry => entry.week === filterWeek)
         : collections[collection];
 
+    // Sort entries by adjusted broadcast date and time
     entries = entries.sort((a, b) => {
-        const dateCompare = new Date(a.date) - new Date(b.date);
+        const aBroadcast = getBroadcastInfo(a);
+        const bBroadcast = getBroadcastInfo(b);
+
+        const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
         if (dateCompare !== 0) return dateCompare;
-        return a.time.localeCompare(b.time);
+
+        return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
     });
 
     if (entries.length === 0) {
@@ -212,6 +264,7 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
     }
 
     entries.forEach((entry, index) => {
+        const broadcastInfo = getBroadcastInfo(entry);
         const row = document.createElement('tr');
         if (highlightNew && index >= entries.length - (highlightNew === true ? 1 : highlightNew)) {
             row.classList.add('highlight');
@@ -223,7 +276,7 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
             <td>${entry.programName}</td>
             <td>${entry.processNumber}</td>
             <td>${entry.week}</td>
-            <td>${entry.day}</td>
+            <td>${broadcastInfo.broadcastDay}</td>
             <td>${entry.date}</td>
             <td>${entry.time}</td>
             <td>${entry.rightsDuration}</td>
@@ -277,7 +330,7 @@ function editEntry(collection, index) {
     DOM.programName.value = entry.programName;
     DOM.processNumber.value = entry.processNumber;
     DOM.week.value = entry.week;
-    DOM.day.value = entry.day;
+    DOM.day.value = entry.day; // Retains original day for form consistency
     DOM.date.value = entry.date;
     DOM.time.value = entry.time;
     DOM.rightsDuration.value = entry.rightsDuration;
@@ -313,16 +366,20 @@ function loadFromLocalStorage() {
 const exportModule = {
     toTxt(entries, collection) {
         entries = entries.sort((a, b) => {
-            const dateCompare = new Date(a.date) - new Date(b.date);
+            const aBroadcast = getBroadcastInfo(a);
+            const bBroadcast = getBroadcastInfo(b);
+
+            const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
             if (dateCompare !== 0) return dateCompare;
-            return a.time.localeCompare(b.time);
+
+            return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
         });
         let content = '';
         entries.forEach(entry => {
             content += `**Nome do Programa**: ${entry.programName}\n`;
             content += `**Número de Processo**: ${entry.processNumber}\n`;
             content += `Semana: ${entry.week}\n`;
-            content += `Dia: ${entry.day}\n`;
+            content += `Dia: ${getBroadcastInfo(entry).broadcastDay}\n`; // Use broadcast day
             content += `Data: ${entry.date}\n`;
             content += `Hora: ${entry.time}\n`;
             content += `Duração dos Direitos: ${entry.rightsDuration}\n`;
@@ -338,9 +395,13 @@ const exportModule = {
     },
     toPdf(entries, collection) {
         entries = entries.sort((a, b) => {
-            const dateCompare = new Date(a.date) - new Date(b.date);
+            const aBroadcast = getBroadcastInfo(a);
+            const bBroadcast = getBroadcastInfo(b);
+
+            const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
             if (dateCompare !== 0) return dateCompare;
-            return a.time.localeCompare(b.time);
+
+            return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
         });
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -350,7 +411,7 @@ const exportModule = {
                 entry.programName,
                 entry.processNumber,
                 entry.week,
-                entry.day,
+                getBroadcastInfo(entry).broadcastDay, // Use broadcast day
                 entry.date,
                 entry.time,
                 entry.rightsDuration,
@@ -417,13 +478,18 @@ function exportFilteredCollection(collection, filterWeek, formatId) {
 function sortTable(collection, column, thElement) {
     const ascending = thElement.getAttribute('aria-sort') !== 'ascending';
     collections[collection].sort((a, b) => {
-        const dateCompare = new Date(a.date) - new Date(b.date);
+        const aBroadcast = getBroadcastInfo(a);
+        const bBroadcast = getBroadcastInfo(b);
+
+        const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
         if (dateCompare !== 0) return dateCompare;
-        const timeCompare = a.time.localeCompare(b.time);
+
+        const timeCompare = aBroadcast.totalMinutes - bBroadcast.totalMinutes;
         if (timeCompare !== 0) return timeCompare;
+
         const valA = a[column] || '';
         const valB = b[column] || '';
-        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valB);
+        return ascending ? valA.localeCompare(valB) : valB.localeCompare(valA);
     });
 
     document.querySelectorAll(`#${collection.replace(/ /g, '_')}Table th`).forEach(th => {
