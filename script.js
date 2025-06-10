@@ -403,6 +403,7 @@ function filterByWeek() {
     }
     const selectedWeek = DOM.filterWeek.value;
     renderAllTables(selectedWeek || null);
+    console.log('Filter applied for week:', selectedWeek); // Debug log
 }
 
 // Clear filter
@@ -410,6 +411,7 @@ function clearFilter() {
     if (DOM.filterWeek) {
         DOM.filterWeek.value = '';
         renderAllTables(null);
+        console.log('Filter cleared'); // Debug log
     }
 }
 
@@ -618,10 +620,11 @@ function sortTable(collection, column, thElement) {
 // Populate weeks dropdown
 function populateWeeksDropdown() {
     if (!DOM.week || !DOM.filterWeek) {
-        console.error('Week dropdowns not found');
+        console.error('Week or filterWeek dropdowns not found');
         return;
     }
 
+    // Clear existing options
     DOM.week.innerHTML = '';
     DOM.filterWeek.innerHTML = '<option value="">Selecione uma semana</option>';
 
@@ -636,6 +639,7 @@ function populateWeeksDropdown() {
         option2.textContent = week;
         DOM.filterWeek.appendChild(option2);
     });
+    console.log('Weeks populated:', DOM.filterWeek.innerHTML); // Debug log
 }
 
 // Populate repeat days
@@ -665,14 +669,47 @@ function populateRepeatDays() {
         }
     });
 }
+// Constants for collections and weeks
+const COLLECTIONS = ['RTP 1', 'RTP 2', 'RTP 3', 'RTP Memoria', 'RTP Africa'];
+const WEEKS = Array.from({ length: 52 }, (_, i) => `Semana ${i + 1}`);
+const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
+// Initialize collections
+let collections = {
+    'RTP 1': [],
+    'RTP 2': [],
+    'RTP 3': [],
+    'RTP Memoria': [],
+    'RTP Africa': []
+};
+
+// Cache DOM elements
+const DOM = {
+    form: document.getElementById('form'),
+    errorMessages: document.getElementById('errorMessages'),
+    notification: document.getElementById('notification'),
+    collection: document.getElementById('collection'),
+    programName: document.getElementById('programName'),
+    processNumber: document.getElementById('processNumber'),
+    week: document.getElementById('week'),
+    day: document.getElementById('day'),
+    date: document.getElementById('date'),
+    time: document.getElementById('time'),
+    rightsDuration: document.getElementById('rightsDuration'),
+    programType: document.getElementById('programType'),
+    category: document.getElementById('category'),
+    filterWeek: document.getElementById('filterWeek'), // Ensure this is correctly referenced
+    isRepeat: document.getElementById('isRepeat'),
+    repeatSection: document.getElementById('repeatSection'),
+    repeatDays: document.getElementById('repeatDays')
+};
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
     if (!DOM.week || !DOM.filterWeek || !DOM.form || !DOM.isRepeat || !DOM.repeatSection) {
         console.error('Critical DOM elements missing');
         return;
     }
-    populateWeeksDropdown();
+    populateWeeksDropdown(); // Ensure this is called
     loadFromLocalStorage();
     DOM.filterWeek.addEventListener('change', filterByWeek);
 
