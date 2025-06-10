@@ -89,9 +89,7 @@
     <section aria-labelledby="filter-heading">
         <h2 id="filter-heading">Filtrar por Semana</h2>
         <div class="filter-controls">
-            <select id="filterWeek">
-                <option value="">Selecione uma semana</option>
-            </select>
+            <select id="filterWeek" onchange="filterByWeek()"></select>
             <button onclick="clearFilter()">Limpar Filtro</button>
         </div>
     </section>

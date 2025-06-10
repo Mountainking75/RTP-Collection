@@ -1,38 +1,3 @@
-// Constants for collections and weeks
-const COLLECTIONS = ['RTP 1', 'RTP 2', 'RTP 3', 'RTP Memoria', 'RTP Africa'];
-const WEEKS = Array.from({ length: 52 }, (_, i) => `Semana ${i + 1}`);
-const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
-
-// Initialize collections
-let collections = {
-    'RTP 1': [],
-    'RTP 2': [],
-    'RTP 3': [],
-    'RTP Memoria': [],
-    'RTP Africa': []
-};
-
-// Cache DOM elements
-const DOM = {
-    form: document.getElementById('form'),
-    errorMessages: document.getElementById('errorMessages'),
-    notification: document.getElementById('notification'),
-    collection: document.getElementById('collection'),
-    programName: document.getElementById('programName'),
-    processNumber: document.getElementById('processNumber'),
-    week: document.getElementById('week'),
-    day: document.getElementById('day'),
-    date: document.getElementById('date'),
-    time: document.getElementById('time'),
-    rightsDuration: document.getElementById('rightsDuration'),
-    programType: document.getElementById('programType'),
-    category: document.getElementById('category'),
-    filterWeek: document.getElementById('filterWeek'),
-    isRepeat: document.getElementById('isRepeat'),
-    repeatSection: document.getElementById('repeatSection'),
-    repeatDays: document.getElementById('repeatDays')
-};
-
 // Helper function to compute the broadcast date, day, and time for sorting and display
 function getBroadcastInfo(entry) {
     const date = new Date(entry.date);
@@ -46,21 +11,23 @@ function getBroadcastInfo(entry) {
         broadcastDay = DAYS[dayIndex];
     }
 
-    // For sorting, adjust date and time to reflect broadcast day (06:00 to 05:59)
+    // For sorting, adjust date to reflect broadcast day (06:00 to 29:00)
     let adjustedDate = new Date(date);
     if (totalMinutes < 6 * 60) {
-        adjustedDate.setDate(date.getDate() - 1); // Shift to previous day for sorting
+        adjustedDate.setDate(date.getDate() - 1); // Shift to previous broadcast day
     }
-    // For Sunday, ensure 00:00-05:59 is treated as part of the previous broadcast day
-    if (entry.day === 'Domingo' && totalMinutes < 6 * 60) {
-        adjustedDate.setDate(date.getDate() - 1); // Keep it as part of Sunday
-        broadcastDay = 'Domingo'; // Override to keep as Sunday
+
+    // Adjust totalMinutes to handle 24:00-29:00 range (map 00:00-05:00 to 24:00-29:00)
+    let sortMinutes = totalMinutes;
+    if (totalMinutes < 6 * 60) {
+        sortMinutes += 24 * 60; // Shift 00:00-05:00 to 24:00-29:00 for sorting
     }
 
     return {
         adjustedDate: adjustedDate,
         broadcastDay: broadcastDay,
-        totalMinutes: totalMinutes
+        totalMinutes: totalMinutes, // For display
+        sortMinutes: sortMinutes    // For sorting
     };
 }
 
@@ -77,7 +44,7 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
         adjustedDate.setDate(date.getDate() - 1); // Shift to previous day
     } else if (day === 'Domingo' && totalMinutes < 6 * 60) {
         // For Sunday, keep the date but validate as part of Sunday's broadcast
-        adjustedDate = new Date(date); // No shift for Sunday
+        adjustedDate = new Date(date); // No shift
     }
 
     // Define the start of Semana 1 as December 30 of the previous year
@@ -164,98 +131,7 @@ function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
     return repeatDate.toISOString().split('T')[0];
 }
 
-// Form handling
-function addToCollection() {
-    const baseFields = {
-        collection: DOM.collection.value,
-        programName: DOM.programName.value.trim(),
-        processNumber: DOM.processNumber.value.trim(),
-        week: DOM.week.value,
-        day: DOM.day.value,
-        date: DOM.date.value,
-        time: DOM.time.value,
-        rightsDuration: DOM.rightsDuration.value.trim(),
-        programType: DOM.programType.value.trim(),
-        category: DOM.category.value
-    };
-
-    // Validate required fields
-    const requiredFields = ['programName', 'processNumber', 'week', 'day', 'date', 'time', 'rightsDuration', 'programType', 'category'];
-    const errors = requiredFields.filter(field => !baseFields[field]).map(field => {
-        const label = DOM[field].previousElementSibling.textContent;
-        return `${label} é obrigatório.`;
-    });
-
-    // Validate date matches week and day based on broadcast day
-    const dateValidationErrors = validateDateAgainstWeekAndDay(baseFields.date, baseFields.week, baseFields.day);
-    errors.push(...dateValidationErrors);
-
-    if (errors.length > 0) {
-        DOM.errorMessages.textContent = errors.join(' ');
-        return;
-    }
-
-    const entries = [baseFields];
-
-    // Handle repeats
-    if (DOM.isRepeat.checked) {
-        const repeatCheckboxes = DOM.repeatDays.querySelectorAll('input[type="checkbox"]:checked');
-        repeatCheckboxes.forEach(checkbox => {
-            const repeatDay = checkbox.value;
-            const timeInput = DOM.repeatDays.querySelector(`input[data-day="${repeatDay}"]`);
-            if (timeInput && timeInput.value) {
-                const repeatDate = computeRepeatDate(baseFields.date, baseFields.day, repeatDay);
-                entries.push({
-                    ...baseFields,
-                    day: repeatDay,
-                    date: repeatDate,
-                    time: timeInput.value
-                });
-            }
-        });
-    }
-
-    // Add entries to collection
-    entries.forEach(entry => {
-        collections[entry.collection].push(entry);
-    });
-
-    // Render with current filter and highlight new entries
-    const currentFilterWeek = DOM.filterWeek.value;
-    renderTable(baseFields.collection, currentFilterWeek || null, entries.length);
-    saveToLocalStorage();
-    DOM.form.reset();
-    DOM.errorMessages.textContent = '';
-    DOM.isRepeat.checked = false;
-    DOM.repeatSection.style.display = 'none';
-    showNotification(`Adicionadas ${entries.length} entrada(s) com sucesso!`);
-}
-
-// Show notification
-function showNotification(message) {
-    DOM.notification.textContent = message;
-    DOM.notification.classList.add('show');
-    setTimeout(() => {
-        DOM.notification.classList.remove('show');
-        setTimeout(() => {
-            DOM.notification.textContent = '';
-        }, 500);
-    }, 3000);
-}
-
-// Clear form
-function clearForm() {
-    DOM.form.reset();
-    DOM.errorMessages.textContent = '';
-    DOM.isRepeat.checked = false;
-    DOM.repeatSection.style.display = 'none';
-}
-
 // Table rendering
-function renderAllTables(filterWeek = null) {
-    COLLECTIONS.forEach(collection => renderTable(collection, filterWeek));
-}
-
 function renderTable(collection, filterWeek = null, highlightNew = false) {
     const tableBody = document.getElementById(`${collection.replace(/ /g, '_')}TableBody`);
     if (!tableBody) {
@@ -264,11 +140,12 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
     }
     tableBody.innerHTML = '';
 
-    let entries = filterWeek
-        ? collections[collection].filter(entry => entry.week === filterWeek)
-        : collections[collection];
+    let entries = collections[collection];
+    if (filterWeek) {
+        entries = entries.filter(entry => entry.week === filterWeek);
+    }
 
-    // Sort entries by adjusted broadcast date and time, with special handling for Sunday
+    // Sort entries by adjusted broadcast date and sortMinutes
     entries = entries.sort((a, b) => {
         const aBroadcast = getBroadcastInfo(a);
         const bBroadcast = getBroadcastInfo(b);
@@ -315,77 +192,6 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
         `;
         tableBody.appendChild(row);
     });
-}
-
-// Filter by week
-function filterByWeek() {
-    if (!DOM.filterWeek) {
-        console.error('Filter week dropdown not found');
-        return;
-    }
-    const selectedWeek = DOM.filterWeek.value;
-    renderAllTables(selectedWeek || null);
-}
-
-// Clear filter
-function clearFilter() {
-    if (DOM.filterWeek) {
-        DOM.filterWeek.value = '';
-        renderAllTables(null);
-    }
-}
-
-// Delete entry
-function confirmDelete(collection, index) {
-    if (confirm('Tem certeza que deseja excluir esta entrada?')) {
-        deleteEntry(collection, index);
-    }
-}
-
-function deleteEntry(collection, index) {
-    collections[collection].splice(index, 1);
-    const currentFilterWeek = DOM.filterWeek.value;
-    renderTable(collection, currentFilterWeek || null);
-    saveToLocalStorage();
-}
-
-// Edit entry
-function editEntry(collection, index) {
-    const entry = collections[collection][index];
-    DOM.collection.value = collection;
-    DOM.programName.value = entry.programName;
-    DOM.processNumber.value = entry.processNumber;
-    DOM.week.value = entry.week;
-    DOM.day.value = entry.day; // Retains original day for form consistency
-    DOM.date.value = entry.date;
-    DOM.time.value = entry.time;
-    DOM.rightsDuration.value = entry.rightsDuration;
-    DOM.programType.value = entry.programType;
-    DOM.category.value = entry.category;
-    DOM.isRepeat.checked = false;
-    DOM.repeatSection.style.display = 'none';
-    deleteEntry(collection, index);
-}
-
-// Local storage
-function saveToLocalStorage() {
-    try {
-        localStorage.setItem('collections', JSON.stringify(collections));
-    } catch (e) {
-        console.error('Erro ao salvar no localStorage:', e);
-    }
-}
-
-function loadFromLocalStorage() {
-    try {
-        const storedCollections = localStorage.getItem('collections');
-        if (storedCollections) {
-            collections = JSON.parse(storedCollections);
-            renderAllTables();
-        }
-    } catch (e) {
-        console.error('Erro ao carregar do localStorage:', e);
-    }
 }
 
 // Export module
@@ -483,16 +289,17 @@ function exportFilteredCollection(collection, filterWeek, formatId) {
         return;
     }
 
-    let entries = filterWeek
-        ? collections[collection].filter(entry => entry.week === filterWeek)
-        : collections[collection];
+    let entries = collections[collection];
+    if (filterWeek) {
+        entries = entries.filter(entry => entry.week === filterWeek);
+    }
 
     if (entries.length === 0) {
         DOM.errorMessages.textContent = `A coleção ${collection} não possui dados para exportar.`;
         return;
     }
 
-    const exportButton = document.querySelector(`#${formatId.replace('export-format-', '')}Table button`);
+    const exportButton = document.querySelector(`#${formatId.replace('export-format-', '')}Table .export-controls button`);
     const loader = document.createElement('span');
     loader.className = 'loader';
     exportButton.appendChild(loader);
@@ -537,26 +344,211 @@ function sortTable(collection, column, thElement) {
     renderTable(collection, currentFilterWeek || null);
 }
 
+// Show notification
+function showNotification(message) {
+    DOM.notification.textContent = message;
+    DOM.notification.classList.add('show');
+    setTimeout(() => {
+        DOM.notification.classList.remove('show');
+        setTimeout(() => {
+            DOM.notification.textContent = '';
+        }, 500);
+    }, 3000);
+}
+
+// Clear form
+function clearForm() {
+    DOM.form.reset();
+    DOM.errorMessages.textContent = '';
+    DOM.isRepeat.checked = false;
+    DOM.repeatSection.style.display = 'none';
+    DOM.repeatDays.innerHTML = ''; // Clear repeat days when form is cancelled
+}
+
+// Add to collection
+function addToCollection() {
+    const baseFields = {
+        collection: DOM.collection.value,
+        programName: DOM.programName.value.trim(),
+        processNumber: DOM.processNumber.value.trim(),
+        week: DOM.week.value,
+        day: DOM.day.value,
+        date: DOM.date.value,
+        time: DOM.time.value,
+        rightsDuration: DOM.rightsDuration.value.trim(),
+        programType: DOM.programType.value.trim(),
+        category: DOM.category.value
+    };
+
+    const errors = validateForm(baseFields);
+    if (errors.length > 0) {
+        DOM.errorMessages.innerHTML = errors.join('<br>');
+        return;
+    }
+
+    const dateWeekValidationErrors = validateDateAgainstWeekAndDay(baseFields.date, baseFields.week, baseFields.day);
+    if (dateWeekValidationErrors.length > 0) {
+        DOM.errorMessages.innerHTML = dateWeekValidationErrors.join('<br>');
+        return;
+    }
+
+    const entries = [];
+    entries.push({ ...baseFields });
+
+    if (DOM.isRepeat.checked) {
+        const repeatDaysCheckboxes = DOM.repeatDays.querySelectorAll('input[type="checkbox"]:checked');
+        repeatDaysCheckboxes.forEach(checkbox => {
+            const repeatDay = checkbox.value;
+            const repeatTimeInput = DOM.repeatDays.querySelector(`input[data-day="${repeatDay}"]`);
+            const repeatTime = repeatTimeInput.value || baseFields.time;
+
+            const repeatDate = computeRepeatDate(baseFields.date, baseFields.day, repeatDay);
+
+            entries.push({
+                ...baseFields,
+                day: repeatDay,
+                date: repeatDate,
+                time: repeatTime,
+                category: 'REPETIÇÃO' // Repeats are always 'REPETIÇÃO'
+            });
+        });
+    }
+
+    entries.forEach(entry => {
+        collections[entry.collection].push(entry);
+    });
+
+    // Render with current filter and highlight new entries
+    const currentFilterWeek = DOM.filterWeek.value;
+    renderAllTables(currentFilterWeek || null, true); // Render all tables with filter, highlight new
+    saveToLocalStorage();
+    DOM.form.reset();
+    DOM.errorMessages.textContent = '';
+    DOM.isRepeat.checked = false;
+    DOM.repeatSection.style.display = 'none';
+    DOM.repeatDays.innerHTML = '';
+    showNotification(`Adicionadas ${entries.length} entrada(s) com sucesso!`);
+}
+
+
+// Form validation
+function validateForm(fields) {
+    const errors = [];
+    for (const key in fields) {
+        if (typeof fields[key] === 'string' && fields[key].trim() === '') {
+            errors.push(`O campo '${key}' é obrigatório.`);
+        }
+    }
+    return errors;
+}
+
+// Render all tables
+function renderAllTables(filterWeek = null, highlightNew = false) {
+    COLLECTIONS.forEach(collection => renderTable(collection, filterWeek, highlightNew));
+}
+
+
+// Filter by week
+function filterByWeek() {
+    const filterWeekDropdown = document.getElementById('filterWeek');
+    if (!filterWeekDropdown) {
+        console.error('Filter week dropdown not found');
+        return;
+    }
+
+    const selectedWeek = filterWeekDropdown.value;
+    renderAllTables(selectedWeek || null);
+}
+
+// Clear filter
+function clearFilter() {
+    const filterWeekDropdown = document.getElementById('filterWeek');
+    if (filterWeekDropdown) {
+        filterWeekDropdown.value = '';
+        renderAllTables(null);
+    }
+}
+
+
+// Delete entry
+function confirmDelete(collection, index) {
+    if (confirm('Tem certeza que deseja excluir esta entrada?')) {
+        deleteEntry(collection, index);
+    }
+}
+
+function deleteEntry(collection, index) {
+    collections[collection].splice(index, 1);
+    const currentFilterWeek = DOM.filterWeek.value;
+    renderTable(collection, currentFilterWeek || null);
+    saveToLocalStorage();
+}
+
+// Edit entry
+function editEntry(collection, index) {
+    const entry = collections[collection][index];
+    DOM.collection.value = entry.collection; // Ensure collection is set correctly
+    DOM.programName.value = entry.programName;
+    DOM.processNumber.value = entry.processNumber;
+    DOM.week.value = entry.week;
+    DOM.day.value = entry.day; // Retains original day for form consistency
+    DOM.date.value = entry.date;
+    DOM.time.value = entry.time;
+    DOM.rightsDuration.value = entry.rightsDuration;
+    DOM.programType.value = entry.programType;
+    DOM.category.value = entry.category;
+    DOM.isRepeat.checked = false;
+    DOM.repeatSection.style.display = 'none';
+    DOM.repeatDays.innerHTML = ''; // Clear repeat days on edit
+    deleteEntry(collection, index);
+}
+
+// Local storage
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem('collections', JSON.stringify(collections));
+    } catch (e) {
+        console.error('Erro ao salvar no localStorage:', e);
+    }
+}
+
+function loadFromLocalStorage() {
+    try {
+        const storedCollections = localStorage.getItem('collections');
+        if (storedCollections) {
+            collections = JSON.parse(storedCollections);
+            renderAllTables();
+        }
+    } catch (e) {
+        console.error('Erro ao carregar do localStorage:', e);
+    }
+}
+
 // Populate weeks dropdown
 function populateWeeksDropdown() {
-    if (!DOM.week || !DOM.filterWeek) {
+    const weekDropdown = document.getElementById('week');
+    const filterWeekDropdown = document.getElementById('filterWeek');
+
+    if (!weekDropdown || !filterWeekDropdown) {
         console.error('Week dropdowns not found');
         return;
     }
 
-    DOM.week.innerHTML = '';
-    DOM.filterWeek.innerHTML = '<option value="">Selecione uma semana</option>';
+    // Clear existing options
+    weekDropdown.innerHTML = '';
+    filterWeekDropdown.innerHTML = '<option value="">Selecione uma semana</option>'; // Add default option
 
+    // Add weeks to both dropdowns
     WEEKS.forEach(week => {
         const option1 = document.createElement('option');
         option1.value = week;
         option1.textContent = week;
-        DOM.week.appendChild(option1);
+        weekDropdown.appendChild(option1);
 
         const option2 = document.createElement('option');
         option2.value = week;
         option2.textContent = week;
-        DOM.filterWeek.appendChild(option2);
+        filterWeekDropdown.appendChild(option2);
     });
 }
 
@@ -588,16 +580,67 @@ function populateRepeatDays() {
     });
 }
 
+// Constants for collections and weeks
+const COLLECTIONS = ['RTP 1', 'RTP 2', 'RTP 3', 'RTP Memoria', 'RTP Africa'];
+const WEEKS = [
+    'Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5',
+    'Semana 6', 'Semana 7', 'Semana 8', 'Semana 9', 'Semana 10',
+    'Semana 11', 'Semana 12', 'Semana 13', 'Semana 14', 'Semana 15',
+    'Semana 16', 'Semana 17', 'Semana 18', 'Semana 19', 'Semana 20',
+    'Semana 21', 'Semana 22', 'Semana 23', 'Semana 24', 'Semana 25',
+    'Semana 26', 'Semana 27', 'Semana 28', 'Semana 29', 'Semana 30',
+    'Semana 31', 'Semana 32', 'Semana 33', 'Semana 34', 'Semana 35',
+    'Semana 36', 'Semana 37', 'Semana 38', 'Semana 39', 'Semana 40',
+    'Semana 41', 'Semana 42', 'Semana 43', 'Semana 44', 'Semana 45',
+    'Semana 46', 'Semana 47', 'Semana 48', 'Semana 49', 'Semana 50',
+    'Semana 51', 'Semana 52'
+];
+const DAYS = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
+
+// Initialize collections
+let collections = {
+    'RTP 1': [],
+    'RTP 2': [],
+    'RTP 3': [],
+    'RTP Memoria': [],
+    'RTP Africa': []
+};
+
+// Cache DOM elements (moved here for global access after initialization)
+const DOM = {
+    form: document.getElementById('form'),
+    errorMessages: document.getElementById('errorMessages'),
+    notification: document.getElementById('notification'),
+    collection: document.getElementById('collection'),
+    programName: document.getElementById('programName'),
+    processNumber: document.getElementById('processNumber'),
+    week: document.getElementById('week'),
+    day: document.getElementById('day'),
+    date: document.getElementById('date'),
+    time: document.getElementById('time'),
+    rightsDuration: document.getElementById('rightsDuration'),
+    programType: document.getElementById('programType'),
+    category: document.getElementById('category'),
+    filterWeek: document.getElementById('filterWeek'),
+    isRepeat: document.getElementById('isRepeat'),
+    repeatSection: document.getElementById('repeatSection'),
+    repeatDays: document.getElementById('repeatDays')
+};
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    if (!DOM.week || !DOM.filterWeek || !DOM.form || !DOM.isRepeat || !DOM.repeatSection) {
-        console.error('Critical DOM elements missing');
+    // Check if critical DOM elements are present
+    if (!DOM.week || !DOM.filterWeek || !DOM.form || !DOM.isRepeat || !DOM.repeatSection || !DOM.repeatDays) {
+        console.error('Critical DOM elements missing. Cannot initialize application.');
         return;
     }
+
+    // Initialize the application
     populateWeeksDropdown();
     loadFromLocalStorage();
-    DOM.filterWeek.addEventListener('change', filterByWeek);
 
+    // Set up event listeners
+    DOM.filterWeek.addEventListener('change', filterByWeek);
     DOM.isRepeat.addEventListener('change', () => {
         DOM.repeatSection.style.display = DOM.isRepeat.checked ? 'block' : 'none';
         if (DOM.isRepeat.checked) {
