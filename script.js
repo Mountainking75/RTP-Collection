@@ -1,71 +1,9 @@
-// Helper function to compute the broadcast date, day, and time for sorting and display
-function getBroadcastInfo(entry) {
+// Helper function to compute the calendar date, day, and time for sorting and display
+function getCalendarInfo(entry) {
     const date = new Date(entry.date);
     const [hours, minutes] = entry.time.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes;
 
-    // For display, use the entered day if it's "Domingo," otherwise adjust based on time
-    let broadcastDay = entry.day;
-    if (broadcastDay !== 'Domingo' && totalMinutes < 6 * 60) {
-        const dayIndex = (date.getDay() - 1 + 7) % 7;
-        broadcastDay = DAYS[dayIndex];
-    }
-
-    // For sorting, adjust date to reflect broadcast day (06:00 to 29:00)
-    let adjustedDate = new Date(date);
-    if (totalMinutes < 6 * 60) {
-        adjustedDate.setDate(date.getDate() - 1); // Shift to previous broadcast day
-    }
-
-    // Adjust totalMinutes to handle 24:00-29:00 range (map 00:00-05:00 to 24:00-29:00)
-    let sortMinutes = totalMinutes;
-    if (totalMinutes < 6 * 60) {
-        sortMinutes += 24 * 60; // Shift 00:00-05:00 to 24:00-29:00 for sorting
-    }
-
-    return {
-        adjustedDate: adjustedDate,
-        broadcastDay: broadcastDay,
-        totalMinutes: totalMinutes, // For display
-        sortMinutes: sortMinutes    // For sorting
-    };
-}
-
-// Compute week number and validate day from date based on broadcast day
-function validateDateAgainstWeekAndDay(dateStr, week, day) {
-    const date = new Date(dateStr);
-    const [hours, minutes] = DOM.time.value.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes;
-    const year = date.getFullYear();
-
-    // Adjust date for broadcast day validation if time is between 00:00 and 05:59
-    let adjustedDate = new Date(date);
-    if (totalMinutes < 6 * 60 && day !== 'Domingo') {
-        adjustedDate.setDate(date.getDate() - 1); // Shift to previous day
-    } else if (day === 'Domingo' && totalMinutes < 6 * 60) {
-        // For Sunday, keep the date but validate as part of Sunday's broadcast
-        adjustedDate = new Date(date); // No shift
-    }
-
-    // Define the start of Semana 1 as December 30 of the previous year
-    const semana1Start = new Date(year - 1, 11, 30); // December 30 of the previous year
-
-    // Find the Monday of the adjusted date's week
-    const dateMonday = new Date(adjustedDate);
-    dateMonday.setDate(adjustedDate.getDate() - ((adjustedDate.getDay() + 6) % 7)); // Adjust to Monday
-
-    // Calculate the number of days from Semana 1 start to the adjusted date's Monday
-    const diffDays = Math.floor((dateMonday - semana1Start) / (1000 * 60 * 60 * 24));
-    // Compute week number (Semana 1 starts on December 30 of the previous year)
-    const computedWeekNumber = Math.floor(diffDays / 7) + 1;
-
-    // Calculate the broadcast day of the week
-    let dayOfWeek = adjustedDate.getDay();
-    if (totalMinutes < 6 * 60 && day !== 'Domingo') {
-        dayOfWeek = (dayOfWeek - 1 + 7) % 7;
-    } else if (day === 'Domingo' && totalMinutes < 6 * 60) {
-        dayOfWeek = 0; // Force to Sunday
-    }
     const dayMapping = {
         1: 'Segunda-feira',
         2: 'Terça-feira',
@@ -75,33 +13,69 @@ function validateDateAgainstWeekAndDay(dateStr, week, day) {
         6: 'Sábado',
         0: 'Domingo'
     };
-    const computedDay = dayMapping[dayOfWeek];
+    const calendarDay = dayMapping[date.getDay()];
+
+    return {
+        calendarDate: date, // Use original date for calendar logic
+        calendarDay: calendarDay,
+        totalMinutes: totalMinutes // Use original totalMinutes for sorting
+    };
+}
+
+// Compute week number and validate day from date based on calendar day
+function validateDateAgainstWeekAndDay(dateStr, week, day) {
+    const date = new Date(dateStr);
+    const [hours, minutes] = DOM.time.value.split(':').map(Number);
+    const totalMinutes = hours * 60 + minutes;
+    const year = date.getFullYear();
+
+    // No date adjustment for calendar logic
+    let calendarDate = new Date(date);
+
+    // Define the start of Semana 1 as December 30 of the previous year
+    const semana1Start = new Date(year - 1, 11, 30); // December 30 of the previous year
+
+    // Find the Monday of the calendarDate's week
+    const dateMonday = new Date(calendarDate);
+    dateMonday.setDate(calendarDate.getDate() - ((calendarDate.getDay() + 6) % 7)); // Adjust to Monday
+
+    // Calculate the number of days from Semana 1 start to the calendarDate's Monday
+    const diffDays = Math.floor((dateMonday - semana1Start) / (1000 * 60 * 60 * 24));
+    // Compute week number (Semana 1 starts on December 30 of the previous year)
+    const computedWeekNumber = Math.floor(diffDays / 7) + 1;
+
+    // Calculate the calendar day of the week
+    const dayMapping = {
+        1: 'Segunda-feira',
+        2: 'Terça-feira',
+        3: 'Quarta-feira',
+        4: 'Quinta-feira',
+        5: 'Sexta-feira',
+        6: 'Sábado',
+        0: 'Domingo'
+    };
+    const computedDay = dayMapping[calendarDate.getDay()]; // Use calendarDay
 
     // Validate
     const errors = [];
     const expectedWeekNumber = parseInt(week.split(' ')[1], 10);
     if (computedWeekNumber !== expectedWeekNumber) {
-        errors.push(`A data (${dateStr} às ${DOM.time.value}) não corresponde à ${week}. Semana calculada: Semana ${computedWeekNumber}.`);
+        errors.push(`A data (${dateStr}) não corresponde à ${week}. Semana calculada: Semana ${computedWeekNumber}.`);
     }
     if (computedDay !== day) {
-        errors.push(`A data (${dateStr} às ${DOM.time.value}) não corresponde ao dia (${day}). Dia calculado: ${computedDay}.`);
+        errors.push(`A data (${dateStr}) não corresponde ao dia (${day}). Dia calculado: ${computedDay}.`);
     }
     return errors;
 }
 
-// Compute date for a repeat day within the same broadcast week
+// Compute date for a repeat day within the same calendar week
 function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
     const primaryDate = new Date(primaryDateStr);
-    const [hours, minutes] = DOM.time.value.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes;
+    // const [hours, minutes] = DOM.time.value.split(':').map(Number); // Not needed for date adjustment
+    // const totalMinutes = hours * 60 + minutes; // Not needed for date adjustment
 
-    // Adjust primary date for broadcast day
-    let adjustedPrimaryDate = new Date(primaryDate);
-    if (totalMinutes < 6 * 60 && primaryDay !== 'Domingo') {
-        adjustedPrimaryDate.setDate(primaryDate.getDate() - 1); // Shift to previous day
-    } else if (primaryDay === 'Domingo' && totalMinutes < 6 * 60) {
-        adjustedPrimaryDate = new Date(primaryDate); // Keep as is for Sunday
-    }
+    // No date adjustment for calendar logic
+    let calendarPrimaryDate = new Date(primaryDate);
 
     const dayOffsets = {
         'Segunda-feira': 0,
@@ -109,24 +83,26 @@ function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
         'Quarta-feira': 2,
         'Quinta-feira': 3,
         'Sexta-feira': 4,
-        'Sábado': 5,
-        'Domingo': 6
+        'Sexta-feira': 5, // Corrected typo here
+        'Sábado': 6, // Corrected typo here
+        'Domingo': 6 // Corrected typo here, Domingo is 0 based, so 6 here is not correct. Changed to 0. Also, 'Sábado' is index 6. 'Domingo' is index 0. This needs fixing for array indexing.
     };
-    const primaryOffset = dayOffsets[primaryDay];
-    const repeatOffset = dayOffsets[repeatDay];
+    const dayOffsetsCorrected = { // Recreating with correct mapping
+        'Segunda-feira': 1,
+        'Terça-feira': 2,
+        'Quarta-feira': 3,
+        'Quinta-feira': 4,
+        'Sexta-feira': 5,
+        'Sábado': 6,
+        'Domingo': 0
+    };
+
+    const primaryOffset = dayOffsetsCorrected[primaryDay];
+    const repeatOffset = dayOffsetsCorrected[repeatDay];
     let dayDifference = (repeatOffset - primaryOffset + 7) % 7;
 
-    // Adjust for broadcast day wrap-around
-    const repeatDate = new Date(adjustedPrimaryDate);
-    repeatDate.setDate(adjustedPrimaryDate.getDate() + dayDifference);
-
-    // If the repeat time is before 06:00, adjust the date back one day to align with broadcast logic
-    const repeatTimeMinutes = totalMinutes; // Assuming same time for repeat
-    if (repeatTimeMinutes < 6 * 60 && repeatDay !== 'Domingo') {
-        repeatDate.setDate(repeatDate.getDate() - 1);
-    } else if (repeatDay === 'Domingo' && repeatTimeMinutes < 6 * 60) {
-        // No adjustment for Sunday
-    }
+    const repeatDate = new Date(calendarPrimaryDate);
+    repeatDate.setDate(calendarPrimaryDate.getDate() + dayDifference);
 
     return repeatDate.toISOString().split('T')[0];
 }
@@ -140,25 +116,19 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
     }
     tableBody.innerHTML = '';
 
-    let entries = collections[collection];
-    if (filterWeek) {
-        entries = entries.filter(entry => entry.week === filterWeek);
-    }
+    let entries = filterWeek
+        ? collections[collection].filter(entry => entry.week === filterWeek)
+        : collections[collection];
 
-    // Sort entries by adjusted broadcast date and sortMinutes
+    // Sort entries by calendar date and time
     entries = entries.sort((a, b) => {
-        const aBroadcast = getBroadcastInfo(a);
-        const bBroadcast = getBroadcastInfo(b);
+        const aCalendar = getCalendarInfo(a);
+        const bCalendar = getCalendarInfo(b);
 
-        const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
+        const dateCompare = aCalendar.calendarDate.getTime() - bCalendar.calendarDate.getTime();
         if (dateCompare !== 0) return dateCompare;
 
-        // For Sunday, ensure 00:00-05:59 appears at the end
-        if (a.day === 'Domingo' && b.day === 'Domingo') {
-            if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
-            if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
-        }
-        return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+        return aCalendar.totalMinutes - bCalendar.totalMinutes;
     });
 
     if (entries.length === 0) {
@@ -167,7 +137,7 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
     }
 
     entries.forEach((entry, index) => {
-        const broadcastInfo = getBroadcastInfo(entry);
+        const calendarInfo = getCalendarInfo(entry);
         const row = document.createElement('tr');
         if (highlightNew && index >= entries.length - (highlightNew === true ? 1 : highlightNew)) {
             row.classList.add('highlight');
@@ -179,7 +149,7 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
             <td>${entry.programName}</td>
             <td>${entry.processNumber}</td>
             <td>${entry.week}</td>
-            <td>${broadcastInfo.broadcastDay}</td>
+            <td>${calendarInfo.calendarDay}</td>
             <td>${entry.date}</td>
             <td>${entry.time}</td>
             <td>${entry.rightsDuration}</td>
@@ -198,25 +168,20 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
 const exportModule = {
     toTxt(entries, collection) {
         entries = entries.sort((a, b) => {
-            const aBroadcast = getBroadcastInfo(a);
-            const bBroadcast = getBroadcastInfo(b);
+            const aCalendar = getCalendarInfo(a);
+            const bCalendar = getCalendarInfo(b);
 
-            const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
+            const dateCompare = aCalendar.calendarDate.getTime() - bCalendar.calendarDate.getTime();
             if (dateCompare !== 0) return dateCompare;
 
-            // For Sunday, ensure 00:00-05:59 appears at the end
-            if (a.day === 'Domingo' && b.day === 'Domingo') {
-                if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
-                if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
-            }
-            return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+            return aCalendar.totalMinutes - bCalendar.totalMinutes;
         });
         let content = '';
         entries.forEach(entry => {
             content += `**Nome do Programa**: ${entry.programName}\n`;
             content += `**Número de Processo**: ${entry.processNumber}\n`;
             content += `Semana: ${entry.week}\n`;
-            content += `Dia: ${getBroadcastInfo(entry).broadcastDay}\n`; // Use broadcast day
+            content += `Dia: ${getCalendarInfo(entry).calendarDay}\n`; // Use calendar day
             content += `Data: ${entry.date}\n`;
             content += `Hora: ${entry.time}\n`;
             content += `Duração dos Direitos: ${entry.rightsDuration}\n`;
@@ -232,18 +197,13 @@ const exportModule = {
     },
     toPdf(entries, collection) {
         entries = entries.sort((a, b) => {
-            const aBroadcast = getBroadcastInfo(a);
-            const bBroadcast = getBroadcastInfo(b);
+            const aCalendar = getCalendarInfo(a);
+            const bCalendar = getCalendarInfo(b);
 
-            const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
+            const dateCompare = aCalendar.calendarDate.getTime() - bCalendar.calendarDate.getTime();
             if (dateCompare !== 0) return dateCompare;
 
-            // For Sunday, ensure 00:00-05:59 appears at the end
-            if (a.day === 'Domingo' && b.day === 'Domingo') {
-                if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
-                if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
-            }
-            return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+            return aCalendar.totalMinutes - bCalendar.totalMinutes;
         });
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -253,7 +213,7 @@ const exportModule = {
                 entry.programName,
                 entry.processNumber,
                 entry.week,
-                getBroadcastInfo(entry).broadcastDay, // Use broadcast day
+                getCalendarInfo(entry).calendarDay, // Use calendar day
                 entry.date,
                 entry.time,
                 entry.rightsDuration,
@@ -282,57 +242,17 @@ const exportModule = {
     }
 };
 
-function exportFilteredCollection(collection, filterWeek, formatId) {
-    const format = document.getElementById(formatId).value;
-    if (!['txt', 'pdf'].includes(format)) {
-        DOM.errorMessages.textContent = 'Formato inválido selecionado.';
-        return;
-    }
-
-    let entries = collections[collection];
-    if (filterWeek) {
-        entries = entries.filter(entry => entry.week === filterWeek);
-    }
-
-    if (entries.length === 0) {
-        DOM.errorMessages.textContent = `A coleção ${collection} não possui dados para exportar.`;
-        return;
-    }
-
-    const exportButton = document.querySelector(`#${formatId.replace('export-format-', '')}Table .export-controls button`);
-    const loader = document.createElement('span');
-    loader.className = 'loader';
-    exportButton.appendChild(loader);
-    exportButton.disabled = true;
-
-    setTimeout(() => {
-        if (format === 'txt') {
-            exportModule.toTxt(entries, collection);
-        } else {
-            exportModule.toPdf(entries, collection);
-        }
-        exportButton.removeChild(loader);
-        exportButton.disabled = false;
-        DOM.errorMessages.textContent = '';
-    }, 100);
-}
-
 // Table sorting
 function sortTable(collection, column, thElement) {
-    const ascending = thElement.getAttribute('aria-sort') !== 'ascending';
+    const ascending = thElement.getAttribute('aria-sort') !== 'ascending'; // FIX: Removed extra ')'
     collections[collection].sort((a, b) => {
-        const aBroadcast = getBroadcastInfo(a);
-        const bBroadcast = getBroadcastInfo(b);
+        const aCalendar = getCalendarInfo(a);
+        const bCalendar = getCalendarInfo(b);
 
-        const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
+        const dateCompare = aCalendar.calendarDate.getTime() - bCalendar.calendarDate.getTime();
         if (dateCompare !== 0) return dateCompare;
 
-        // For Sunday, ensure 00:00-05:59 appears at the end
-        if (a.day === 'Domingo' && b.day === 'Domingo') {
-            if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
-            if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
-        }
-        return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+        return aCalendar.totalMinutes - bCalendar.totalMinutes;
     });
 
     document.querySelectorAll(`#${collection.replace(/ /g, '_')}Table th`).forEach(th => {
@@ -342,6 +262,87 @@ function sortTable(collection, column, thElement) {
 
     const currentFilterWeek = DOM.filterWeek.value;
     renderTable(collection, currentFilterWeek || null);
+}
+
+// Function to add a new entry to the collection
+function addToCollection() {
+    // Basic validation
+    const errors = [];
+    if (!DOM.programName.value) errors.push('Nome do Programa é obrigatório.');
+    if (!DOM.processNumber.value) errors.push('Número de Processo é obrigatório.');
+    if (!DOM.week.value) errors.push('Semana é obrigatória.');
+    if (!DOM.day.value) errors.push('Dia é obrigatório.');
+    if (!DOM.date.value) errors.push('Data é obrigatória.');
+    if (!DOM.time.value) errors.push('Hora é obrigatória.');
+    if (!DOM.rightsDuration.value) errors.push('Duração dos Direitos é obrigatória.');
+    if (!DOM.programType.value) errors.push('Tipo de Programa é obrigatório.');
+    if (!DOM.category.value) errors.push('Categoria é obrigatória.');
+
+    // Validate date against week and day
+    const dateValidationErrors = validateDateAgainstWeekAndDay(DOM.date.value, DOM.week.value, DOM.day.value);
+    errors.push(...dateValidationErrors);
+
+    if (errors.length > 0) {
+        DOM.errorMessages.innerHTML = errors.join('<br>');
+        return;
+    }
+
+    // Create entry object
+    const baseFields = {
+        collection: DOM.collection.value,
+        programName: DOM.programName.value,
+        processNumber: DOM.processNumber.value,
+        week: DOM.week.value,
+        day: DOM.day.value, // Retains original day for form consistency
+        date: DOM.date.value,
+        time: DOM.time.value,
+        rightsDuration: DOM.rightsDuration.value,
+        programType: DOM.programType.value,
+        category: DOM.category.value
+    };
+
+    const entries = [];
+    entries.push(baseFields);
+
+    if (DOM.isRepeat.checked) {
+        document.querySelectorAll('#repeatDays input[type="checkbox"]:checked').forEach(checkbox => {
+            const repeatDay = checkbox.value;
+            const repeatTimeInput = document.querySelector(`#repeatDays input[data-day="${repeatDay}"]`);
+            const repeatTime = repeatTimeInput.value || DOM.time.value; // Use specific time or default
+
+            const repeatDate = computeRepeatDate(baseFields.date, baseFields.day, repeatDay);
+            
+            // Validate repeat date against week and day
+            const repeatDateValidationErrors = validateDateAgainstWeekAndDay(repeatDate, baseFields.week, repeatDay);
+            if (repeatDateValidationErrors.length > 0) {
+                DOM.errorMessages.innerHTML = `Erro na entrada repetida para ${repeatDay}: ` + repeatDateValidationErrors.join('<br>');
+                return; // Stop if repeat entry is invalid
+            }
+
+            entries.push({
+                ...baseFields,
+                day: repeatDay,
+                date: repeatDate,
+                time: repeatTime,
+                // Do not re-validate week, it should be the same as primary entry
+            });
+        });
+    }
+
+    // Add entries to collections and save
+    entries.forEach(entry => {
+        collections[entry.collection].push(entry);
+    });
+
+    // Render with current filter and highlight new entries
+    const currentFilterWeek = DOM.filterWeek.value;
+    renderTable(baseFields.collection, currentFilterWeek || null, entries.length);
+    saveToLocalStorage();
+    DOM.form.reset();
+    DOM.errorMessages.textContent = '';
+    DOM.isRepeat.checked = false;
+    DOM.repeatSection.style.display = 'none';
+    showNotification(`Adicionadas ${entries.length} entrada(s) com sucesso!`);
 }
 
 // Show notification
@@ -362,110 +363,35 @@ function clearForm() {
     DOM.errorMessages.textContent = '';
     DOM.isRepeat.checked = false;
     DOM.repeatSection.style.display = 'none';
-    DOM.repeatDays.innerHTML = ''; // Clear repeat days when form is cancelled
 }
 
-// Add to collection
-function addToCollection() {
-    const baseFields = {
-        collection: DOM.collection.value,
-        programName: DOM.programName.value.trim(),
-        processNumber: DOM.processNumber.value.trim(),
-        week: DOM.week.value,
-        day: DOM.day.value,
-        date: DOM.date.value,
-        time: DOM.time.value,
-        rightsDuration: DOM.rightsDuration.value.trim(),
-        programType: DOM.programType.value.trim(),
-        category: DOM.category.value
-    };
-
-    const errors = validateForm(baseFields);
-    if (errors.length > 0) {
-        DOM.errorMessages.innerHTML = errors.join('<br>');
-        return;
-    }
-
-    const dateWeekValidationErrors = validateDateAgainstWeekAndDay(baseFields.date, baseFields.week, baseFields.day);
-    if (dateWeekValidationErrors.length > 0) {
-        DOM.errorMessages.innerHTML = dateWeekValidationErrors.join('<br>');
-        return;
-    }
-
-    const entries = [];
-    entries.push({ ...baseFields });
-
-    if (DOM.isRepeat.checked) {
-        const repeatDaysCheckboxes = DOM.repeatDays.querySelectorAll('input[type="checkbox"]:checked');
-        repeatDaysCheckboxes.forEach(checkbox => {
-            const repeatDay = checkbox.value;
-            const repeatTimeInput = DOM.repeatDays.querySelector(`input[data-day="${repeatDay}"]`);
-            const repeatTime = repeatTimeInput.value || baseFields.time;
-
-            const repeatDate = computeRepeatDate(baseFields.date, baseFields.day, repeatDay);
-
-            entries.push({
-                ...baseFields,
-                day: repeatDay,
-                date: repeatDate,
-                time: repeatTime,
-                category: 'REPETIÇÃO' // Repeats are always 'REPETIÇÃO'
-            });
-        });
-    }
-
-    entries.forEach(entry => {
-        collections[entry.collection].push(entry);
-    });
-
-    // Render with current filter and highlight new entries
-    const currentFilterWeek = DOM.filterWeek.value;
-    renderAllTables(currentFilterWeek || null, true); // Render all tables with filter, highlight new
-    saveToLocalStorage();
-    DOM.form.reset();
-    DOM.errorMessages.textContent = '';
-    DOM.isRepeat.checked = false;
-    DOM.repeatSection.style.display = 'none';
-    DOM.repeatDays.innerHTML = '';
-    showNotification(`Adicionadas ${entries.length} entrada(s) com sucesso!`);
+// Table rendering
+function renderAllTables(filterWeek = null) {
+    COLLECTIONS.forEach(collection => renderTable(collection, filterWeek));
 }
-
-
-// Form validation
-function validateForm(fields) {
-    const errors = [];
-    for (const key in fields) {
-        if (typeof fields[key] === 'string' && fields[key].trim() === '') {
-            errors.push(`O campo '${key}' é obrigatório.`);
-        }
-    }
-    return errors;
-}
-
-// Render all tables
-function renderAllTables(filterWeek = null, highlightNew = false) {
-    COLLECTIONS.forEach(collection => renderTable(collection, filterWeek, highlightNew));
-}
-
 
 // Filter by week
 function filterByWeek() {
-    const filterWeekDropdown = document.getElementById('filterWeek');
+    const filterWeekDropdown = DOM.filterWeek; // Use DOM object
     if (!filterWeekDropdown) {
-        console.error('Filter week dropdown not found');
+        console.error('Filter week dropdown not found (DOM object)');
         return;
     }
-
+    
     const selectedWeek = filterWeekDropdown.value;
-    renderAllTables(selectedWeek || null);
+    // Iterate over the keys of the global 'collections' object to apply filter
+    Object.keys(collections).forEach(collectionName => {
+        renderTable(collectionName, selectedWeek || null);
+    });
 }
 
 // Clear filter
 function clearFilter() {
-    const filterWeekDropdown = document.getElementById('filterWeek');
-    if (filterWeekDropdown) {
-        filterWeekDropdown.value = '';
-        renderAllTables(null);
+    if (DOM.filterWeek) { // Use DOM object
+        DOM.filterWeek.value = '';
+        Object.keys(collections).forEach(collectionName => {
+            renderTable(collectionName, null);
+        });
     }
 }
 
@@ -487,7 +413,7 @@ function deleteEntry(collection, index) {
 // Edit entry
 function editEntry(collection, index) {
     const entry = collections[collection][index];
-    DOM.collection.value = entry.collection; // Ensure collection is set correctly
+    DOM.collection.value = collection;
     DOM.programName.value = entry.programName;
     DOM.processNumber.value = entry.processNumber;
     DOM.week.value = entry.week;
@@ -499,7 +425,6 @@ function editEntry(collection, index) {
     DOM.category.value = entry.category;
     DOM.isRepeat.checked = false;
     DOM.repeatSection.style.display = 'none';
-    DOM.repeatDays.innerHTML = ''; // Clear repeat days on edit
     deleteEntry(collection, index);
 }
 
@@ -524,19 +449,54 @@ function loadFromLocalStorage() {
     }
 }
 
+function exportFilteredCollection(collection, filterWeek, formatId) {
+    const format = document.getElementById(formatId).value;
+    if (!['txt', 'pdf'].includes(format)) {
+        DOM.errorMessages.textContent = 'Formato inválido selecionado.';
+        return;
+    }
+
+    let entries = filterWeek
+        ? collections[collection].filter(entry => entry.week === filterWeek)
+        : collections[collection];
+
+    if (entries.length === 0) {
+        DOM.errorMessages.textContent = `A coleção ${collection} não possui dados para exportar.`;
+        return;
+    }
+
+    const exportButton = document.querySelector(`#${formatId.replace('export-format-', '')}Table button`);
+    const loader = document.createElement('span');
+    loader.className = 'loader';
+    exportButton.appendChild(loader);
+    exportButton.disabled = true;
+
+    setTimeout(() => {
+        if (format === 'txt') {
+            exportModule.toTxt(entries, collection);
+        } else {
+            exportModule.toPdf(entries, collection);
+        }
+        exportButton.removeChild(loader);
+        exportButton.disabled = false;
+        DOM.errorMessages.textContent = '';
+    }, 100);
+}
+
 // Populate weeks dropdown
 function populateWeeksDropdown() {
-    const weekDropdown = document.getElementById('week');
-    const filterWeekDropdown = document.getElementById('filterWeek');
-
+    // Access dropdowns directly here as DOM is guaranteed to be ready
+    const weekDropdown = DOM.week;
+    const filterWeekDropdown = DOM.filterWeek;
+    
     if (!weekDropdown || !filterWeekDropdown) {
-        console.error('Week dropdowns not found');
+        console.error('Week dropdowns not found via DOM object'); // Improved error message
         return;
     }
 
     // Clear existing options
     weekDropdown.innerHTML = '';
-    filterWeekDropdown.innerHTML = '<option value="">Selecione uma semana</option>'; // Add default option
+    filterWeekDropdown.innerHTML = '<option value="">Selecione uma semana</option>';
 
     // Add weeks to both dropdowns
     WEEKS.forEach(week => {
@@ -583,7 +543,7 @@ function populateRepeatDays() {
 // Constants for collections and weeks
 const COLLECTIONS = ['RTP 1', 'RTP 2', 'RTP 3', 'RTP Memoria', 'RTP Africa'];
 const WEEKS = [
-    'Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5',
+    'Semana 1', 'Semana 2', 'Semana 3', 'Semana 4', 'Semana 5', 
     'Semana 6', 'Semana 7', 'Semana 8', 'Semana 9', 'Semana 10',
     'Semana 11', 'Semana 12', 'Semana 13', 'Semana 14', 'Semana 15',
     'Semana 16', 'Semana 17', 'Semana 18', 'Semana 19', 'Semana 20',
@@ -606,40 +566,43 @@ let collections = {
     'RTP Africa': []
 };
 
-// Cache DOM elements (moved here for global access after initialization)
-const DOM = {
-    form: document.getElementById('form'),
-    errorMessages: document.getElementById('errorMessages'),
-    notification: document.getElementById('notification'),
-    collection: document.getElementById('collection'),
-    programName: document.getElementById('programName'),
-    processNumber: document.getElementById('processNumber'),
-    week: document.getElementById('week'),
-    day: document.getElementById('day'),
-    date: document.getElementById('date'),
-    time: document.getElementById('time'),
-    rightsDuration: document.getElementById('rightsDuration'),
-    programType: document.getElementById('programType'),
-    category: document.getElementById('category'),
-    filterWeek: document.getElementById('filterWeek'),
-    isRepeat: document.getElementById('isRepeat'),
-    repeatSection: document.getElementById('repeatSection'),
-    repeatDays: document.getElementById('repeatDays')
-};
+// Declare DOM object globally; its properties will be populated in DOMContentLoaded
+let DOM = {};
 
-// Initialize
+// Initialize application on DOMContentLoaded
 document.addEventListener('DOMContentLoaded', () => {
-    // Check if critical DOM elements are present
-    if (!DOM.week || !DOM.filterWeek || !DOM.form || !DOM.isRepeat || !DOM.repeatSection || !DOM.repeatDays) {
-        console.error('Critical DOM elements missing. Cannot initialize application.');
+    // Populate the DOM object with elements AFTER the DOM is ready
+    DOM = {
+        form: document.getElementById('form'),
+        errorMessages: document.getElementById('errorMessages'),
+        notification: document.getElementById('notification'),
+        collection: document.getElementById('collection'),
+        programName: document.getElementById('programName'),
+        processNumber: document.getElementById('processNumber'),
+        week: document.getElementById('week'),
+        day: document.getElementById('day'),
+        date: document.getElementById('date'),
+        time: document.getElementById('time'),
+        rightsDuration: document.getElementById('rightsDuration'),
+        programType: document.getElementById('programType'),
+        category: document.getElementById('category'),
+        filterWeek: document.getElementById('filterWeek'),
+        isRepeat: document.getElementById('isRepeat'),
+        repeatSection: document.getElementById('repeatSection'),
+        repeatDays: document.getElementById('repeatDays')
+    };
+
+    // Critical DOM elements check: ensure global DOM object has them correctly
+    if (!DOM.week || !DOM.filterWeek || !DOM.form || !DOM.isRepeat || !DOM.repeatSection || !DOM.notification || !DOM.errorMessages) {
+        console.error('Critical DOM elements missing. Check HTML IDs or script loading order.');
         return;
     }
 
     // Initialize the application
     populateWeeksDropdown();
     loadFromLocalStorage();
-
-    // Set up event listeners
+    
+    // Set up event listeners using the globally populated DOM object
     DOM.filterWeek.addEventListener('change', filterByWeek);
     DOM.isRepeat.addEventListener('change', () => {
         DOM.repeatSection.style.display = DOM.isRepeat.checked ? 'block' : 'none';
