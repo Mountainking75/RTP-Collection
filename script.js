@@ -4,17 +4,18 @@ function getBroadcastInfo(entry) {
     const [hours, minutes] = entry.time.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes;
 
-    // For display, use the entered day if it's "Domingo," otherwise adjust based on time
+    // Determine broadcast day (6:00 AM to 5:59 AM)
     let broadcastDay = entry.day;
-    if (broadcastDay !== 'Domingo' && totalMinutes < 6 * 60) {
-        const dayIndex = (date.getDay() - 1 + 7) % 7;
-        broadcastDay = DAYS[dayIndex];
-    }
-
-    // For sorting, adjust date to reflect broadcast day (06:00 to 05:59)
     let adjustedDate = new Date(date);
+    
+    // If time is before 6:00 AM, it belongs to previous broadcast day
     if (totalMinutes < 6 * 60) {
-        adjustedDate.setDate(date.getDate() - 1); // Shift to previous day for sorting
+        adjustedDate.setDate(date.getDate() - 1);
+        
+        // Find the previous day name
+        const dayIndex = (date.getDay() - 1 + 7) % 7; // Adjust for Sunday (0) to Saturday (6)
+        const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+        broadcastDay = days[dayIndex];
     }
 
     return {
@@ -137,17 +138,16 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
         ? collections[collection].filter(entry => entry.week === filterWeek)
         : collections[collection];
 
-    // Sort entries by adjusted broadcast date and time, with 00:00-05:59 at the end of the broadcast day
+    // Sort entries by adjusted broadcast date and time
     entries = entries.sort((a, b) => {
         const aBroadcast = getBroadcastInfo(a);
         const bBroadcast = getBroadcastInfo(b);
 
+        // First sort by adjusted date (broadcast day)
         const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
         if (dateCompare !== 0) return dateCompare;
 
-        // Place 00:00-05:59 at the end of the broadcast day
-        if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
-        if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
+        // Then sort by time within the same broadcast day
         return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
     });
 
@@ -193,18 +193,16 @@ const exportModule = {
 
             const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
             if (dateCompare !== 0) return dateCompare;
-
-            // Place 00:00-05:59 at the end of the broadcast day
-            if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
-            if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
             return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
         });
+        
         let content = '';
         entries.forEach(entry => {
+            const broadcastInfo = getBroadcastInfo(entry);
             content += `**Nome do Programa**: ${entry.programName}\n`;
             content += `**Número de Processo**: ${entry.processNumber}\n`;
             content += `Semana: ${entry.week}\n`;
-            content += `Dia: ${getBroadcastInfo(entry).broadcastDay}\n`; // Use broadcast day
+            content += `Dia: ${broadcastInfo.broadcastDay}\n`;
             content += `Data: ${entry.date}\n`;
             content += `Hora: ${entry.time}\n`;
             content += `Duração dos Direitos: ${entry.rightsDuration}\n`;
@@ -225,28 +223,28 @@ const exportModule = {
 
             const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
             if (dateCompare !== 0) return dateCompare;
-
-            // Place 00:00-05:59 at the end of the broadcast day
-            if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
-            if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
             return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
         });
+        
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.autoTable({
             head: [['Nome do Programa', 'Número de Processo', 'Semana', 'Dia', 'Data', 'Hora', 'Duração dos Direitos', 'Tipo de Programa', 'Categoria']],
-            body: entries.map(entry => [
-                entry.programName,
-                entry.processNumber,
-                entry.week,
-                getBroadcastInfo(entry).broadcastDay, // Use broadcast day
-                entry.date,
-                entry.time,
-                entry.rightsDuration,
-                entry.programType,
-                entry.category
-            ]),
-            styles: { fontSize: 8, textColor: [0, 0, 0] }, // Black text
+            body: entries.map(entry => {
+                const broadcastInfo = getBroadcastInfo(entry);
+                return [
+                    entry.programName,
+                    entry.processNumber,
+                    entry.week,
+                    broadcastInfo.broadcastDay,
+                    entry.date,
+                    entry.time,
+                    entry.rightsDuration,
+                    entry.programType,
+                    entry.category
+                ];
+            }),
+            styles: { fontSize: 8, textColor: [0, 0, 0] },
             headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0] },
             columnStyles: {
                 8: {
@@ -254,13 +252,13 @@ const exportModule = {
                     fontStyle: 'bold',
                     fillColor: entry => {
                         switch (entry.toUpperCase()) {
-                            case 'NOVIDADE': return [40, 167, 69]; // Green
-                            case 'ESTREIA': return [220, 53, 69];  // Red
-                            case 'REPETIÇÃO': return [0, 123, 255]; // Blue
-                            default: return [255, 255, 255];       // White
+                            case 'NOVIDADE': return [40, 167, 69];
+                            case 'ESTREIA': return [220, 53, 69];
+                            case 'REPETIÇÃO': return [0, 123, 255];
+                            default: return [255, 255, 255];
                         }
                     },
-                    textColor: [0, 0, 0] // Black text
+                    textColor: [0, 0, 0]
                 }
             }
         });
@@ -271,17 +269,19 @@ const exportModule = {
 // Table sorting
 function sortTable(collection, column, thElement) {
     const ascending = thElement.getAttribute('aria-sort') !== 'ascending';
+    
     collections[collection].sort((a, b) => {
         const aBroadcast = getBroadcastInfo(a);
         const bBroadcast = getBroadcastInfo(b);
 
+        // First sort by adjusted date (broadcast day)
         const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
-        if (dateCompare !== 0) return dateCompare;
+        if (dateCompare !== 0) return ascending ? dateCompare : -dateCompare;
 
-        // Place 00:00-05:59 at the end of the broadcast day
-        if (aBroadcast.totalMinutes < 6 * 60 && bBroadcast.totalMinutes >= 6 * 60) return 1; // a after b
-        if (aBroadcast.totalMinutes >= 6 * 60 && bBroadcast.totalMinutes < 6 * 60) return -1; // a before b
-        return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+        // Then sort by time within the same broadcast day
+        return ascending 
+            ? aBroadcast.totalMinutes - bBroadcast.totalMinutes
+            : bBroadcast.totalMinutes - aBroadcast.totalMinutes;
     });
 
     document.querySelectorAll(`#${collection.replace(/ /g, '_')}Table th`).forEach(th => {
