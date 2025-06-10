@@ -4,24 +4,30 @@ function getBroadcastInfo(entry) {
     const [hours, minutes] = entry.time.split(':').map(Number);
     const totalMinutes = hours * 60 + minutes;
 
-    // Determine broadcast day (6:00 AM to 5:59 AM)
+    // For display, use the entered day if it's "Domingo," otherwise adjust based on time
     let broadcastDay = entry.day;
+    if (broadcastDay !== 'Domingo' && totalMinutes < 6 * 60) {
+        const dayIndex = (date.getDay() - 1 + 7) % 7;
+        broadcastDay = DAYS[dayIndex];
+    }
+
+    // For sorting, adjust date to reflect broadcast day (06:00 to 29:00)
     let adjustedDate = new Date(date);
-    
-    // If time is before 6:00 AM, it belongs to previous broadcast day
     if (totalMinutes < 6 * 60) {
-        adjustedDate.setDate(date.getDate() - 1);
-        
-        // Find the previous day name
-        const dayIndex = (date.getDay() - 1 + 7) % 7; // Adjust for Sunday (0) to Saturday (6)
-        const days = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-        broadcastDay = days[dayIndex];
+        adjustedDate.setDate(date.getDate() - 1); // Shift to previous broadcast day
+    }
+
+    // Adjust totalMinutes to handle 24:00-29:00 range (map 00:00-05:00 to 24:00-29:00)
+    let sortMinutes = totalMinutes;
+    if (totalMinutes < 6 * 60) {
+        sortMinutes += 24 * 60; // Shift 00:00-05:00 to 24:00-29:00 for sorting
     }
 
     return {
         adjustedDate: adjustedDate,
         broadcastDay: broadcastDay,
-        totalMinutes: totalMinutes
+        totalMinutes: totalMinutes, // For display
+        sortMinutes: sortMinutes    // For sorting
     };
 }
 
@@ -138,17 +144,15 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
         ? collections[collection].filter(entry => entry.week === filterWeek)
         : collections[collection];
 
-    // Sort entries by adjusted broadcast date and time
+    // Sort entries by adjusted broadcast date and sortMinutes
     entries = entries.sort((a, b) => {
         const aBroadcast = getBroadcastInfo(a);
         const bBroadcast = getBroadcastInfo(b);
 
-        // First sort by adjusted date (broadcast day)
         const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
         if (dateCompare !== 0) return dateCompare;
 
-        // Then sort by time within the same broadcast day
-        return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+        return aBroadcast.sortMinutes - bBroadcast.sortMinutes;
     });
 
     if (entries.length === 0) {
@@ -158,6 +162,8 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
 
     entries.forEach((entry, index) => {
         const broadcastInfo = getBroadcastInfo(entry);
+        // Display time as entered, but adjust for 24:00-29:00 if needed (for UI, keep as is for now)
+        const displayTime = entry.time; // Could be enhanced to show 25:00 etc. if UI supports
         const row = document.createElement('tr');
         if (highlightNew && index >= entries.length - (highlightNew === true ? 1 : highlightNew)) {
             row.classList.add('highlight');
@@ -171,7 +177,7 @@ function renderTable(collection, filterWeek = null, highlightNew = false) {
             <td>${entry.week}</td>
             <td>${broadcastInfo.broadcastDay}</td>
             <td>${entry.date}</td>
-            <td>${entry.time}</td>
+            <td>${displayTime}</td>
             <td>${entry.rightsDuration}</td>
             <td>${entry.programType}</td>
             <td class="${entry.category.toLowerCase()}"><span style="color: black;">${entry.category}</span></td>
@@ -193,18 +199,20 @@ const exportModule = {
 
             const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
             if (dateCompare !== 0) return dateCompare;
-            return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+
+            return aBroadcast.sortMinutes - bBroadcast.sortMinutes;
         });
-        
         let content = '';
         entries.forEach(entry => {
             const broadcastInfo = getBroadcastInfo(entry);
+            // Display time as entered, could adjust to 25:00 etc. if needed
+            const displayTime = entry.time;
             content += `**Nome do Programa**: ${entry.programName}\n`;
             content += `**Número de Processo**: ${entry.processNumber}\n`;
             content += `Semana: ${entry.week}\n`;
             content += `Dia: ${broadcastInfo.broadcastDay}\n`;
             content += `Data: ${entry.date}\n`;
-            content += `Hora: ${entry.time}\n`;
+            content += `Hora: ${displayTime}\n`;
             content += `Duração dos Direitos: ${entry.rightsDuration}\n`;
             content += `Tipo de Programa: ${entry.programType}\n`;
             content += `**Categoria**: ${entry.category}\n`;
@@ -223,28 +231,29 @@ const exportModule = {
 
             const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
             if (dateCompare !== 0) return dateCompare;
-            return aBroadcast.totalMinutes - bBroadcast.totalMinutes;
+
+            return aBroadcast.sortMinutes - bBroadcast.sortMinutes;
         });
-        
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         doc.autoTable({
             head: [['Nome do Programa', 'Número de Processo', 'Semana', 'Dia', 'Data', 'Hora', 'Duração dos Direitos', 'Tipo de Programa', 'Categoria']],
             body: entries.map(entry => {
                 const broadcastInfo = getBroadcastInfo(entry);
+                const displayTime = entry.time; // Could adjust to 25:00 etc. if needed
                 return [
                     entry.programName,
                     entry.processNumber,
                     entry.week,
                     broadcastInfo.broadcastDay,
                     entry.date,
-                    entry.time,
+                    displayTime,
                     entry.rightsDuration,
                     entry.programType,
                     entry.category
                 ];
             }),
-            styles: { fontSize: 8, textColor: [0, 0, 0] },
+            styles: { fontSize: 8, textColor: [0, 0, 0] }, // Black text
             headStyles: { fillColor: [200, 200, 200], textColor: [0, 0, 0] },
             columnStyles: {
                 8: {
@@ -252,13 +261,13 @@ const exportModule = {
                     fontStyle: 'bold',
                     fillColor: entry => {
                         switch (entry.toUpperCase()) {
-                            case 'NOVIDADE': return [40, 167, 69];
-                            case 'ESTREIA': return [220, 53, 69];
-                            case 'REPETIÇÃO': return [0, 123, 255];
-                            default: return [255, 255, 255];
+                            case 'NOVIDADE': return [40, 167, 69]; // Green
+                            case 'ESTREIA': return [220, 53, 69];  // Red
+                            case 'REPETIÇÃO': return [0, 123, 255]; // Blue
+                            default: return [255, 255, 255];       // White
                         }
                     },
-                    textColor: [0, 0, 0]
+                    textColor: [0, 0, 0] // Black text
                 }
             }
         });
@@ -269,19 +278,14 @@ const exportModule = {
 // Table sorting
 function sortTable(collection, column, thElement) {
     const ascending = thElement.getAttribute('aria-sort') !== 'ascending';
-    
     collections[collection].sort((a, b) => {
         const aBroadcast = getBroadcastInfo(a);
         const bBroadcast = getBroadcastInfo(b);
 
-        // First sort by adjusted date (broadcast day)
         const dateCompare = aBroadcast.adjustedDate - bBroadcast.adjustedDate;
-        if (dateCompare !== 0) return ascending ? dateCompare : -dateCompare;
+        if (dateCompare !== 0) return dateCompare;
 
-        // Then sort by time within the same broadcast day
-        return ascending 
-            ? aBroadcast.totalMinutes - bBroadcast.totalMinutes
-            : bBroadcast.totalMinutes - aBroadcast.totalMinutes;
+        return aBroadcast.sortMinutes - bBroadcast.sortMinutes;
     });
 
     document.querySelectorAll(`#${collection.replace(/ /g, '_')}Table th`).forEach(th => {
@@ -292,6 +296,7 @@ function sortTable(collection, column, thElement) {
     const currentFilterWeek = DOM.filterWeek.value;
     renderTable(collection, currentFilterWeek || null);
 }
+
 
     // Render with current filter and highlight new entries
     const currentFilterWeek = DOM.filterWeek.value;
