@@ -73,7 +73,6 @@ function computeRepeatDate(primaryDateStr, primaryDay, repeatDay) {
     return repeatDate.toISOString().split('T')[0];
 }
 
-
 // Renderização e UI
 function renderTable(collection, entriesToRender) {
     const tableBody = document.getElementById(`${collection.replace(/ /g, '_')}TableBody`);
@@ -87,7 +86,7 @@ function renderTable(collection, entriesToRender) {
     entriesToRender.forEach(entry => {
         const calendarInfo = getCalendarInfo(entry);
         const row = document.createElement('tr');
-        row.setAttribute('data-id', entry.id); // Corrigido para usar ID
+        row.setAttribute('data-id', entry.id);
 
         row.innerHTML = `
             <td>${entry.programName}</td>
@@ -128,11 +127,11 @@ function updateView() {
         }
         
         filteredEntries.sort((a, b) => {
-             const aCalendar = getCalendarInfo(a);
-             const bCalendar = getCalendarInfo(b);
-             const dateCompare = aCalendar.calendarDate.getTime() - bCalendar.calendarDate.getTime();
-             if (dateCompare !== 0) return dateCompare;
-             return aCalendar.totalMinutes - bCalendar.totalMinutes;
+            const aCalendar = getCalendarInfo(a);
+            const bCalendar = getCalendarInfo(b);
+            const dateCompare = aCalendar.calendarDate.getTime() - bCalendar.calendarDate.getTime();
+            if (dateCompare !== 0) return dateCompare;
+            return aCalendar.totalMinutes - bCalendar.totalMinutes;
         });
 
         renderTable(collection, filteredEntries);
@@ -154,17 +153,13 @@ function clearForm() {
         DOM.isRepeat.checked = false;
         DOM.repeatSection.style.display = 'none';
     }
+    DOM.editId.value = '';
+    DOM.editCollection.value = '';
+    DOM.submitButton.textContent = 'Adicionar';
 }
-
-function clearFilter() {
-    DOM.filterWeek.value = '';
-    DOM.searchInput.value = '';
-    updateView();
-}
-
 
 // Manipulação de Dados (Adicionar, Editar, Apagar)
-function addToCollection() {
+function submitForm() {
     DOM.errorMessages.innerHTML = '';
     const requiredFields = ['programName', 'processNumber', 'week', 'day', 'date', 'time', 'rightsDuration', 'programType', 'category'];
     let errors = [];
@@ -183,8 +178,6 @@ function addToCollection() {
     }
 
     const baseFields = {
-        id: Date.now(),
-        collection: DOM.collection.value,
         programName: DOM.programName.value.trim(),
         processNumber: DOM.processNumber.value.trim(),
         week: DOM.week.value,
@@ -197,45 +190,63 @@ function addToCollection() {
         episodes: DOM.episodes.value.trim()
     };
 
-    const entriesToAdd = [baseFields];
+    const collection = DOM.editCollection.value || DOM.collection.value;
+    const editId = parseFloat(DOM.editId.value);
 
-    if (DOM.isRepeat.checked) {
-        document.querySelectorAll('#repeatDays input[type="checkbox"]:checked').forEach(checkbox => {
-            const repeatDay = checkbox.value;
-            const repeatTimeInput = document.querySelector(`#repeatDays input[data-day="${repeatDay}"]`);
-            const repeatTime = repeatTimeInput.value || DOM.time.value;
-            const repeatDate = computeRepeatDate(baseFields.date, baseFields.day, repeatDay);
-            
-            entriesToAdd.push({
-                ...baseFields,
-                id: Date.now() + Math.random(),
-                day: repeatDay,
-                date: repeatDate,
-                time: repeatTime,
+    if (editId) {
+        // Modo Edição: Atualizar entrada existente
+        const indexToUpdate = collections[collection].findIndex(entry => entry.id === editId);
+        if (indexToUpdate > -1) {
+            const updatedEntry = { ...collections[collection][indexToUpdate], ...baseFields };
+            collections[collection][indexToUpdate] = updatedEntry;
+            saveToLocalStorage();
+            updateView();
+            showNotification('Entrada editada com sucesso!');
+            clearForm();
+        }
+    } else {
+        // Modo Adição: Adicionar nova(s) entrada(s)
+        const entriesToAdd = [{ ...baseFields, id: Date.now(), collection }];
+
+        if (DOM.isRepeat.checked) {
+            document.querySelectorAll('#repeatDays input[type="checkbox"]:checked').forEach(checkbox => {
+                const repeatDay = checkbox.value;
+                const repeatTimeInput = document.querySelector(`#repeatDays input[data-day="${repeatDay}"]`);
+                const repeatTime = repeatTimeInput.value || DOM.time.value;
+                const repeatDate = computeRepeatDate(baseFields.date, baseFields.day, repeatDay);
+                
+                entriesToAdd.push({
+                    ...baseFields,
+                    id: Date.now() + Math.random(),
+                    day: repeatDay,
+                    date: repeatDate,
+                    time: repeatTime,
+                    collection
+                });
             });
+        }
+
+        entriesToAdd.forEach(entry => {
+            if (!collections[entry.collection]) {
+                collections[entry.collection] = [];
+            }
+            collections[entry.collection].push(entry);
         });
+
+        saveToLocalStorage();
+        updateView();
+        
+        entriesToAdd.forEach(entry => {
+            const row = document.querySelector(`tr[data-id='${entry.id}']`);
+            if (row) {
+                row.classList.add('highlight');
+                setTimeout(() => row.classList.remove('highlight'), 2000);
+            }
+        });
+        
+        showNotification(`Adicionadas ${entriesToAdd.length} entrada(s) com sucesso!`);
+        clearForm();
     }
-
-    entriesToAdd.forEach(entry => {
-        if (!collections[entry.collection]) {
-            collections[entry.collection] = [];
-        }
-        collections[entry.collection].push(entry);
-    });
-
-    saveToLocalStorage();
-    updateView();
-    
-    entriesToAdd.forEach(entry => {
-        const row = document.querySelector(`tr[data-id='${entry.id}']`);
-        if (row) {
-            row.classList.add('highlight');
-            setTimeout(() => row.classList.remove('highlight'), 2000);
-        }
-    });
-    
-    clearForm();
-    showNotification(`Adicionadas ${entriesToAdd.length} entrada(s) com sucesso!`);
 }
 
 function confirmDelete(collection, id) {
@@ -251,14 +262,15 @@ function deleteEntry(collection, id) {
         saveToLocalStorage();
         updateView();
         showNotification('Entrada excluída com sucesso!');
+        clearForm();
     }
 }
 
 function editEntry(collection, id) {
-    const indexToEdit = collections[collection].findIndex(entry => entry.id === id);
-    if (indexToEdit > -1) {
-        const entry = collections[collection][indexToEdit];
-        
+    const entry = collections[collection].find(entry => entry.id === id);
+    if (entry) {
+        DOM.editId.value = entry.id;
+        DOM.editCollection.value = collection;
         DOM.collection.value = collection;
         DOM.programName.value = entry.programName;
         DOM.processNumber.value = entry.processNumber;
@@ -273,14 +285,16 @@ function editEntry(collection, id) {
         DOM.isRepeat.checked = false;
         DOM.repeatSection.style.display = 'none';
 
-        collections[collection].splice(indexToEdit, 1);
-        saveToLocalStorage();
-        updateView();
-        
+        DOM.submitButton.textContent = 'Salvar';
+
+        const dateValidationErrors = validateDateAgainstWeekAndDay(DOM.date.value, DOM.week.value, DOM.day.value);
+        if (dateValidationErrors.length > 0) {
+            DOM.errorMessages.innerHTML = dateValidationErrors.join('<br>');
+        }
+
         DOM.programName.focus();
     }
 }
-
 
 // Local Storage & Export
 function saveToLocalStorage() {
@@ -400,6 +414,17 @@ function populateRepeatDays() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // Adiciona campos hidden se não estiverem no HTML
+    const editIdInput = document.createElement('input');
+    editIdInput.type = 'hidden';
+    editIdInput.id = 'editId';
+    document.getElementById('form').appendChild(editIdInput);
+
+    const editCollectionInput = document.createElement('input');
+    editCollectionInput.type = 'hidden';
+    editCollectionInput.id = 'editCollection';
+    document.getElementById('form').appendChild(editCollectionInput);
+
     DOM = {
         form: document.getElementById('form'),
         errorMessages: document.getElementById('errorMessages'),
@@ -419,13 +444,21 @@ document.addEventListener('DOMContentLoaded', () => {
         repeatSection: document.getElementById('repeatSection'),
         repeatDays: document.getElementById('repeatDays'),
         filterWeek: document.getElementById('filterWeek'),
-        searchInput: document.getElementById('searchInput')
+        searchInput: document.getElementById('searchInput'),
+        editId: document.getElementById('editId'),
+        editCollection: document.getElementById('editCollection'),
+        submitButton: document.querySelector('#form button:first-of-type') // Botão "Adicionar"
     };
 
     populateWeeksDropdown();
     loadFromLocalStorage();
     updateView();
     
+    DOM.form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        submitForm();
+    });
+
     DOM.filterWeek.addEventListener('change', updateView);
     DOM.searchInput.addEventListener('input', updateView);
     
