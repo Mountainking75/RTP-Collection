@@ -29,7 +29,7 @@ function populateWeeks() {
   weekSelect.innerHTML = '';
   filterSelect.innerHTML = '<option value="">Selecione uma semana</option>';
 
-  const startYear = 2025;
+  const startYear = 2026;
   const endYear = 2030;
 
   for (let y = startYear; y <= endYear; y++) {
