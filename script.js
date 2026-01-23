@@ -25,6 +25,8 @@ function getMondayOfFirstWeek(year) {
 function populateWeeks() {
   const weekSelect = document.getElementById('week');
   const filterSelect = document.getElementById('filterWeek');
+  if (!weekSelect || !filterSelect) return;
+  
   weekSelect.innerHTML = '';
   filterSelect.innerHTML = '<option value="">Selecione uma semana</option>';
 
@@ -35,7 +37,6 @@ function populateWeeks() {
     for (let w = 1; w <= 54; w++) {
       const monday = getMondayOfFirstWeek(y);
       monday.setDate(monday.getDate() + (w - 1) * 7);
-
       const nextYearFirstMonday = getMondayOfFirstWeek(y + 1);
       if (monday >= nextYearFirstMonday) break;
 
@@ -55,6 +56,7 @@ function populateWeeks() {
 
 function populateRepeatDays() {
   const container = document.getElementById('repeatDays');
+  if (!container) return;
   container.innerHTML = '';
   days.forEach(day => {
     const div = document.createElement('div');
@@ -125,7 +127,7 @@ function addToCollection() {
     let errMsg = '';
     days.forEach(day => {
       const cb = document.getElementById(`repeat-${day}`);
-      if (cb.checked) {
+      if (cb && cb.checked) {
         const timeVal = document.getElementById(`time-${day}`).value;
         if (!timeVal) {
           errMsg += `Hora obrigatória para ${day}.<br>`;
@@ -136,14 +138,8 @@ function addToCollection() {
         }
       }
     });
-    if (errMsg) {
-      error.innerHTML = errMsg;
-      return;
-    }
-    if (!hasOne) {
-      error.innerHTML = 'Selecione pelo menos um dia.';
-      return;
-    }
+    if (errMsg) { error.innerHTML = errMsg; return; }
+    if (!hasOne) { error.innerHTML = 'Selecione pelo menos um dia.'; return; }
   }
 
   entries.forEach(e => collections[collection].push(e));
@@ -165,16 +161,16 @@ function clearForm() {
 
 function renderAllTables(filter = '') {
   COLLECTIONS.forEach(col => {
-    const tbody = document.getElementById(col.replace(/ /g, '_') + 'TableBody');
+    const tbodyId = col.replace(/ /g, '_') + 'TableBody';
+    const tbody = document.getElementById(tbodyId);
     if (!tbody) return;
     tbody.innerHTML = '';
     
     let data = [...collections[col]];
-    
+
+    // ORDENAÇÃO AUTOMÁTICA (Data > Hora)
     data.sort((a, b) => {
-      if (a.date !== b.date) {
-        return new Date(a.date) - new Date(b.date);
-      }
+      if (a.date !== b.date) return new Date(a.date) - new Date(b.date);
       return a.time.localeCompare(b.time);
     });
 
@@ -205,11 +201,12 @@ function renderAllTables(filter = '') {
 }
 
 function deleteEntryById(col, id) {
-  if (confirm('Apagar esta entrada?')) {
+  if (confirm('Deseja apagar esta entrada?')) {
+    // Filtra pelo ID único para não apagar a coleção errada ou inteira
     collections[col] = collections[col].filter(e => e.id !== id);
     saveToLocalStorage();
     renderAllTables(document.getElementById('filterWeek').value);
-    notify('Apagado');
+    notify('Entrada removida');
   }
 }
 
@@ -239,11 +236,9 @@ function exportTXT(col, data) {
   txt += `--------------------------------------------------\n`;
   txt += `Programa | Proc. | Sem. | Data | Hora | Direitos | Tipo\n`;
   txt += `--------------------------------------------------\n`;
-  
   data.forEach(e => {
     txt += `${e.programName} | ${e.processNumber} | ${e.week} | ${e.date} | ${e.time} | ${e.rightsDuration} | ${e.programType}\n`;
   });
-  
   download(txt, `${col}.txt`, 'text/plain');
 }
 
@@ -259,42 +254,22 @@ function exportPDF(col, data) {
   doc.autoTable({ 
     startY: 30, 
     head: [['Programa','Processo','Semana','Data','Hora','Direitos','Tipo','Categoria']], 
-    body: data.map(e => [
-      e.programName, 
-      e.processNumber, 
-      e.week, 
-      e.date, 
-      e.time, 
-      e.rightsDuration, 
-      e.programType,
-      e.category // A célula que vamos colorir
-    ]),
+    body: data.map(e => [e.programName, e.processNumber, e.week, e.date, e.time, e.rightsDuration, e.programType, e.category]),
     styles: { fontSize: 8 },
-    headStyles: { fillColor: [44, 62, 80] }, // Cor azul escura profissional para o cabeçalho
-    
-    // LÓGICA DE CORES PARA AS CATEGORIAS
+    headStyles: { fillColor: [44, 62, 80] },
     didParseCell: function(data) {
-      // Verificamos se estamos na última coluna (índice 7 - Categoria)
       if (data.section === 'body' && data.column.index === 7) {
-        const category = data.cell.raw.toUpperCase();
-        
-        if (category === 'NOVIDADE') {
-          data.cell.styles.fillColor = [40, 167, 69]; // Verde (#28a745)
-          data.cell.styles.textColor = [255, 255, 255];
-          data.cell.styles.fontStyle = 'bold';
-        } else if (category === 'ESTREIA') {
-          data.cell.styles.fillColor = [220, 53, 69]; // Vermelho (#dc3545)
-          data.cell.styles.textColor = [255, 255, 255];
-          data.cell.styles.fontStyle = 'bold';
-        } else if (category === 'REPETIÇÃO' || category === 'REPETICAO') {
-          data.cell.styles.fillColor = [0, 123, 255]; // Azul (#007bff)
+        const cat = data.cell.raw.toUpperCase();
+        if (cat === 'NOVIDADE') data.cell.styles.fillColor = [40, 167, 69];
+        else if (cat === 'ESTREIA') data.cell.styles.fillColor = [220, 53, 69];
+        else if (cat === 'REPETIÇÃO' || cat === 'REPETICAO') data.cell.styles.fillColor = [0, 123, 255];
+        if (['NOVIDADE', 'ESTREIA', 'REPETIÇÃO', 'REPETICAO'].includes(cat)) {
           data.cell.styles.textColor = [255, 255, 255];
           data.cell.styles.fontStyle = 'bold';
         }
       }
     }
   });
-  
   doc.save(`${col}.pdf`);
 }
 
@@ -330,11 +305,13 @@ function importBackup() { document.getElementById('importFile').click(); }
 
 function notify(msg) {
   const n = document.getElementById('notification');
+  if (!n) return;
   n.textContent = msg;
   n.classList.add('show');
   setTimeout(() => { n.classList.remove('show'); n.textContent = ''; }, 4000);
 }
 
+// Eventos
 document.getElementById('week').addEventListener('change', updateDateField);
 document.getElementById('day').addEventListener('change', updateDateField);
 document.getElementById('isRepeat').addEventListener('change', function() {
@@ -356,6 +333,7 @@ document.getElementById('importFile').addEventListener('change', e => {
   reader.readAsText(file);
 });
 
+// Inicialização
 loadFromLocalStorage();
 populateWeeks();
 populateRepeatDays();
