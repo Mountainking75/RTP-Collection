@@ -13,10 +13,10 @@ const dayMap = {
 
 const days = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
-// NOVA LÓGICA: Encontra a segunda-feira da semana que contém o dia 1 de Janeiro
+// Encontra a segunda-feira da semana que contém o dia 1 de Janeiro
 function getMondayOfFirstWeek(year) {
   const jan1 = new Date(year, 0, 1);
-  const day = jan1.getDay(); // 0=Dom, 1=Seg, ..., 6=Sab
+  const day = jan1.getDay(); 
   const diffToMonday = day === 0 ? -6 : 1 - day;
   const monday = new Date(jan1);
   monday.setDate(jan1.getDate() + diffToMonday);
@@ -37,7 +37,6 @@ function populateWeeks() {
       const monday = getMondayOfFirstWeek(y);
       monday.setDate(monday.getDate() + (w - 1) * 7);
 
-      // Se a segunda-feira desta semana já pertence à Semana 1 do próximo ano, paramos
       const nextYearFirstMonday = getMondayOfFirstWeek(y + 1);
       if (monday >= nextYearFirstMonday) break;
 
@@ -121,7 +120,8 @@ function addToCollection() {
       error.innerHTML = 'Preencha a hora e verifique a data.';
       return;
     }
-    entries.push({ programName, processNumber, week, day, date, time, rightsDuration, programType, category });
+    // Adicionado ID Único
+    entries.push({ id: Date.now() + Math.random(), programName, processNumber, week, day, date, time, rightsDuration, programType, category });
   } else {
     let hasOne = false;
     let errMsg = '';
@@ -133,7 +133,8 @@ function addToCollection() {
           errMsg += `Hora obrigatória para ${day}.<br>`;
         } else {
           const date = calculateDate(week, day);
-          entries.push({ programName, processNumber, week, day, date, time: timeVal, rightsDuration, programType, category });
+          // Adicionado ID Único
+          entries.push({ id: Date.now() + Math.random(), programName, processNumber, week, day, date, time: timeVal, rightsDuration, programType, category });
           hasOne = true;
         }
       }
@@ -150,7 +151,7 @@ function addToCollection() {
 
   entries.forEach(e => collections[collection].push(e));
   saveToLocalStorage();
-  renderAllTables();
+  renderAllTables(document.getElementById('filterWeek').value);
   clearForm();
   notify('Adicionado com sucesso!');
 }
@@ -170,13 +171,25 @@ function renderAllTables(filter = '') {
     const tbody = document.getElementById(col.replace(/ /g, '_') + 'TableBody');
     if (!tbody) return;
     tbody.innerHTML = '';
-    let data = collections[col];
+    
+    // Obter dados e aplicar ordenação automática (Data e depois Hora)
+    let data = [...collections[col]];
+    
+    data.sort((a, b) => {
+      if (a.date !== b.date) {
+        return new Date(a.date) - new Date(b.date);
+      }
+      return a.time.localeCompare(b.time);
+    });
+
     if (filter) data = data.filter(e => e.week === filter);
+
     if (data.length === 0) {
       tbody.innerHTML = '<tr><td colspan="10" class="no-results">Sem resultados</td></tr>';
       return;
     }
-    data.forEach((e, i) => {
+
+    data.forEach((e) => {
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${e.programName}</td>
@@ -188,16 +201,17 @@ function renderAllTables(filter = '') {
         <td>${e.rightsDuration}</td>
         <td>${e.programType}</td>
         <td class="${e.category.toLowerCase()}">${e.category}</td>
-        <td><button onclick="deleteEntry('${col}', ${i})">Apagar</button></td>
+        <td><button onclick="deleteEntryById('${col}', ${e.id})">Apagar</button></td>
       `;
       tbody.appendChild(tr);
     });
   });
 }
 
-function deleteEntry(col, i) {
+function deleteEntryById(col, id) {
   if (confirm('Apagar esta entrada?')) {
-    collections[col].splice(i, 1);
+    // Filtrar pelo ID único em vez do índice
+    collections[col] = collections[col].filter(e => e.id !== id);
     saveToLocalStorage();
     renderAllTables(document.getElementById('filterWeek').value);
     notify('Apagado');
@@ -211,7 +225,14 @@ function clearFilter() {
 
 function exportFilteredCollection(col, week, id) {
   const fmt = document.getElementById(id).value;
-  const data = week ? collections[col].filter(e => e.week === week) : collections[col];
+  // Garantir que a exportação segue a ordem da tabela
+  let data = [...collections[col]];
+  data.sort((a, b) => {
+    if (a.date !== b.date) return new Date(a.date) - new Date(b.date);
+    return a.time.localeCompare(b.time);
+  });
+  
+  if (week) data = data.filter(e => e.week === week);
   if (!data.length) return alert('Nada para exportar');
   fmt === 'pdf' ? exportPDF(col, data) : exportTXT(col, data);
 }
@@ -226,7 +247,11 @@ function exportPDF(col, data) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
   doc.text(`Coleção: ${col}`, 10, 10);
-  doc.autoTable({ startY: 20, head: [['Programa','Processo','Semana','Data','Hora']], body: data.map(e => [e.programName, e.processNumber, e.week, e.date, e.time]) });
+  doc.autoTable({ 
+    startY: 20, 
+    head: [['Programa','Processo','Semana','Data','Hora']], 
+    body: data.map(e => [e.programName, e.processNumber, e.week, e.date, e.time]) 
+  });
   doc.save(`${col}.pdf`);
 }
 
@@ -265,16 +290,6 @@ function notify(msg) {
   n.textContent = msg;
   n.classList.add('show');
   setTimeout(() => { n.classList.remove('show'); n.textContent = ''; }, 4000);
-}
-
-function sortTable(col, field, th) {
-  const dir = th.getAttribute('aria-sort') === 'ascending' ? -1 : 1;
-  collections[col].sort((a, b) => (a[field] > b[field] ? dir : -dir));
-  th.setAttribute('aria-sort', dir === 1 ? 'ascending' : 'descending');
-  
-  // Guardar a nova ordem e atualizar as tabelas
-  saveToLocalStorage();
-  renderAllTables(document.getElementById('filterWeek').value);
 }
 
 // Eventos
