@@ -13,7 +13,6 @@ const dayMap = {
 
 const days = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
-// Encontra a segunda-feira da semana que contém o dia 1 de Janeiro
 function getMondayOfFirstWeek(year) {
   const jan1 = new Date(year, 0, 1);
   const day = jan1.getDay(); 
@@ -120,7 +119,6 @@ function addToCollection() {
       error.innerHTML = 'Preencha a hora e verifique a data.';
       return;
     }
-    // Adicionado ID Único
     entries.push({ id: Date.now() + Math.random(), programName, processNumber, week, day, date, time, rightsDuration, programType, category });
   } else {
     let hasOne = false;
@@ -133,7 +131,6 @@ function addToCollection() {
           errMsg += `Hora obrigatória para ${day}.<br>`;
         } else {
           const date = calculateDate(week, day);
-          // Adicionado ID Único
           entries.push({ id: Date.now() + Math.random(), programName, processNumber, week, day, date, time: timeVal, rightsDuration, programType, category });
           hasOne = true;
         }
@@ -172,7 +169,6 @@ function renderAllTables(filter = '') {
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    // Obter dados e aplicar ordenação automática (Data e depois Hora)
     let data = [...collections[col]];
     
     data.sort((a, b) => {
@@ -210,7 +206,6 @@ function renderAllTables(filter = '') {
 
 function deleteEntryById(col, id) {
   if (confirm('Apagar esta entrada?')) {
-    // Filtrar pelo ID único em vez do índice
     collections[col] = collections[col].filter(e => e.id !== id);
     saveToLocalStorage();
     renderAllTables(document.getElementById('filterWeek').value);
@@ -225,8 +220,8 @@ function clearFilter() {
 
 function exportFilteredCollection(col, week, id) {
   const fmt = document.getElementById(id).value;
-  // Garantir que a exportação segue a ordem da tabela
   let data = [...collections[col]];
+  
   data.sort((a, b) => {
     if (a.date !== b.date) return new Date(a.date) - new Date(b.date);
     return a.time.localeCompare(b.time);
@@ -234,24 +229,50 @@ function exportFilteredCollection(col, week, id) {
   
   if (week) data = data.filter(e => e.week === week);
   if (!data.length) return alert('Nada para exportar');
+  
   fmt === 'pdf' ? exportPDF(col, data) : exportTXT(col, data);
 }
 
 function exportTXT(col, data) {
-  let txt = `Coleção: ${col}\n\n`;
-  data.forEach(e => txt += `${e.programName} | ${e.processNumber} | ${e.week} | ${e.date} | ${e.time}\n`);
+  let txt = `Coleção: ${col}\n`;
+  txt += `Gerado em: ${new Date().toLocaleString()}\n`;
+  txt += `--------------------------------------------------\n`;
+  txt += `Programa | Proc. | Sem. | Data | Hora | Direitos | Tipo\n`;
+  txt += `--------------------------------------------------\n`;
+  
+  data.forEach(e => {
+    txt += `${e.programName} | ${e.processNumber} | ${e.week} | ${e.date} | ${e.time} | ${e.rightsDuration} | ${e.programType}\n`;
+  });
+  
   download(txt, `${col}.txt`, 'text/plain');
 }
 
 function exportPDF(col, data) {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF();
-  doc.text(`Coleção: ${col}`, 10, 10);
+  const doc = new jsPDF('landscape'); // Landscape para caberem todas as colunas
+  
+  doc.setFontSize(16);
+  doc.text(`Coleção: ${col}`, 14, 15);
+  doc.setFontSize(10);
+  doc.text(`Filtro: ${document.getElementById('filterWeek').value || 'Todas as semanas'}`, 14, 22);
+
   doc.autoTable({ 
-    startY: 20, 
-    head: [['Programa','Processo','Semana','Data','Hora']], 
-    body: data.map(e => [e.programName, e.processNumber, e.week, e.date, e.time]) 
+    startY: 30, 
+    head: [['Programa','Processo','Semana','Data','Hora','Direitos','Tipo','Categoria']], 
+    body: data.map(e => [
+      e.programName, 
+      e.processNumber, 
+      e.week, 
+      e.date, 
+      e.time, 
+      e.rightsDuration, 
+      e.programType,
+      e.category
+    ]),
+    styles: { fontSize: 8 },
+    headStyles: { fillColor: [0, 123, 255] }
   });
+  
   doc.save(`${col}.pdf`);
 }
 
@@ -292,7 +313,6 @@ function notify(msg) {
   setTimeout(() => { n.classList.remove('show'); n.textContent = ''; }, 4000);
 }
 
-// Eventos
 document.getElementById('week').addEventListener('change', updateDateField);
 document.getElementById('day').addEventListener('change', updateDateField);
 document.getElementById('isRepeat').addEventListener('change', function() {
@@ -314,7 +334,6 @@ document.getElementById('importFile').addEventListener('change', e => {
   reader.readAsText(file);
 });
 
-// Init
 loadFromLocalStorage();
 populateWeeks();
 populateRepeatDays();
