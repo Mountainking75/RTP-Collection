@@ -249,7 +249,7 @@ function exportTXT(col, data) {
 
 function exportPDF(col, data) {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('landscape'); // Landscape para caberem todas as colunas
+  const doc = new jsPDF('landscape'); 
   
   doc.setFontSize(16);
   doc.text(`Coleção: ${col}`, 14, 15);
@@ -267,10 +267,32 @@ function exportPDF(col, data) {
       e.time, 
       e.rightsDuration, 
       e.programType,
-      e.category
+      e.category // A célula que vamos colorir
     ]),
     styles: { fontSize: 8 },
-    headStyles: { fillColor: [0, 123, 255] }
+    headStyles: { fillColor: [44, 62, 80] }, // Cor azul escura profissional para o cabeçalho
+    
+    // LÓGICA DE CORES PARA AS CATEGORIAS
+    didParseCell: function(data) {
+      // Verificamos se estamos na última coluna (índice 7 - Categoria)
+      if (data.section === 'body' && data.column.index === 7) {
+        const category = data.cell.raw.toUpperCase();
+        
+        if (category === 'NOVIDADE') {
+          data.cell.styles.fillColor = [40, 167, 69]; // Verde (#28a745)
+          data.cell.styles.textColor = [255, 255, 255];
+          data.cell.styles.fontStyle = 'bold';
+        } else if (category === 'ESTREIA') {
+          data.cell.styles.fillColor = [220, 53, 69]; // Vermelho (#dc3545)
+          data.cell.styles.textColor = [255, 255, 255];
+          data.cell.styles.fontStyle = 'bold';
+        } else if (category === 'REPETIÇÃO' || category === 'REPETICAO') {
+          data.cell.styles.fillColor = [0, 123, 255]; // Azul (#007bff)
+          data.cell.styles.textColor = [255, 255, 255];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      }
+    }
   });
   
   doc.save(`${col}.pdf`);
