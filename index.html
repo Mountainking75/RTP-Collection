@@ -11,237 +11,246 @@
 </head>
 <body>
     <h1>Gerenciador de Coleções RTP</h1>
+    
     <div id="notification" class="notification" role="alert"></div>
-    <form id="form" onsubmit="addToCollection(); return false;">
-        <div id="errorMessages" class="error-messages" role="alert"></div>
-        <div>
-            <label for="collection">Coleção:</label>
-            <select id="collection" aria-required="true">
-                <option value="RTP 1">RTP 1</option>
-                <option value="RTP 2">RTP 2</option>
-                <option value="RTP 3">RTP 3</option>
-                <option value="RTP Memoria">RTP Memória</option>
-                <option value="RTP Africa">RTP África</option>
-            </select>
-        </div>
-        <div>
-            <label for="programName">Nome do Programa:</label>
-            <input type="text" id="programName" aria-required="true">
-        </div>
-        <div>
-            <label for="processNumber">Número de Processo:</label>
-            <input type="text" id="processNumber" aria-required="true">
-        </div>
-        <div>
-            <label for="week">Semana:</label>
-            <select id="week" aria-required="true"></select>
-        </div>
-        <div>
-            <label for="day">Dia da Semana:</label>
-            <select id="day" aria-required="true">
-                <option value="Segunda-feira">Segunda-feira</option>
-                <option value="Terça-feira">Terça-feira</option>
-                <option value="Quarta-feira">Quarta-feira</option>
-                <option value="Quinta-feira">Quinta-feira</option>
-                <option value="Sexta-feira">Sexta-feira</option>
-                <option value="Sábado">Sábado</option>
-                <option value="Domingo">Domingo</option>
-            </select>
-        </div>
-        <div>
-            <label for="date">Data de Exibição:</label>
-            <input type="date" id="date" readonly>
-        </div>
-        <div>
-            <label for="time">Hora:</label>
-            <input type="time" id="time" aria-required="true">
-        </div>
-        <div>
-            <label for="rightsDuration">Duração de Direitos:</label>
-            <input type="text" id="rightsDuration" aria-required="true">
-        </div>
-        <div>
-            <label for="programType">Tipo de Programa:</label>
-            <input type="text" id="programType" aria-required="true">
-        </div>
-        <div>
-            <label for="category">Categoria:</label>
-            <select id="category" aria-required="true">
-                <option value="NOVIDADE" class="novidade">NOVIDADE</option>
-                <option value="ESTREIA" class="estreia">ESTREIA</option>
-                <option value="REPETIÇÃO" class="repeticao">REPETIÇÃO</option>
-            </select>
-        </div>
-        <div>
-            <label for="isRepeat">Repete?</label>
-            <input type="checkbox" id="isRepeat">
-        </div>
-        <div id="repeatSection" style="display: none;">
-            <label>Repetir nos dias:</label>
-            <div id="repeatDays"></div>
-        </div>
-        <div class="form-buttons">
-            <button type="submit">Adicionar</button>
-            <button type="reset" onclick="clearForm()">Cancelar</button>
-        </div>
-    </form>
 
-    <input type="file" id="importFile" accept=".json" style="display: none;">
-
-    <section class="danger-zone">
-        <h2>Gestão de Dados</h2>
-        <button onclick="exportBackup()">Exportar Backup (JSON)</button>
-        <button onclick="importBackup()">Importar Backup</button>
-        <button onclick="resetAllData()" class="danger-button">Apagar todos os dados</button>
+    <section>
+        <h2>Adicionar Entrada</h2>
+        <form id="form" onsubmit="addToCollection(); return false;">
+            <div id="errorMessages" class="error-messages" role="alert"></div>
+            
+            <div>
+                <label for="collection">Coleção:</label>
+                <select id="collection" aria-required="true">
+                    <option value="RTP 1">RTP 1</option>
+                    <option value="RTP 2">RTP 2</option>
+                    <option value="RTP 3">RTP 3</option>
+                    <option value="RTP Memoria">RTP Memória</option>
+                    <option value="RTP Africa">RTP África</option>
+                </select>
+            </div>
+        
+            <div>
+                <label for="programName">Nome do Programa:</label>
+                <input type="text" id="programName" required>
+            </div>
+        
+            <div>
+                <label for="processNumber">Número de Processo:</label>
+                <input type="text" id="processNumber" required>
+            </div>
+        
+            <div>
+                <label for="week">Semana:</label>
+                <select id="week" required></select>
+            </div>
+        
+            <div id="singleDaySection">
+                <div>
+                    <label for="day">Dia da Semana:</label>
+                    <select id="day">
+                        <option value="Segunda-feira">Segunda-feira</option>
+                        <option value="Terça-feira">Terça-feira</option>
+                        <option value="Quarta-feira">Quarta-feira</option>
+                        <option value="Quinta-feira">Quinta-feira</option>
+                        <option value="Sexta-feira">Sexta-feira</option>
+                        <option value="Sábado">Sábado</option>
+                        <option value="Domingo">Domingo</option>
+                    </select>
+                </div>
+        
+                <div>
+                    <label for="date">Data de Exibição:</label>
+                    <input type="date" id="date" readonly style="background-color: #f9f9f9;">
+                </div>
+        
+                <div>
+                    <label for="time">Hora:</label>
+                    <input type="time" id="time">
+                </div>
+            </div>
+        
+            <div>
+                <label for="rightsDuration">Duração de Direitos:</label>
+                <input type="text" id="rightsDuration" required>
+            </div>
+        
+            <div>
+                <label for="programType">Tipo de Programa:</label>
+                <input type="text" id="programType" required>
+            </div>
+        
+            <div>
+                <label for="category">Categoria:</label>
+                <select id="category">
+                    <option value="NOVIDADE" class="novidade">NOVIDADE</option>
+                    <option value="ESTREIA" class="estreia">ESTREIA</option>
+                    <option value="REPETIÇÃO" class="repeticao">REPETIÇÃO</option>
+                </select>
+            </div>
+        
+            <div>
+                <label for="isRepeat">Repete?</label>
+                <input type="checkbox" id="isRepeat">
+            </div>
+        
+            <div id="repeatSection" style="display: none;">
+                <label>Repetir nos dias:</label>
+                <div id="repeatDays" class="repeat-days-grid"></div>
+            </div>
+        
+            <div class="form-buttons">
+                <button type="submit">Adicionar</button>
+                <button type="reset" onclick="clearForm()">Cancelar</button>
+            </div>
+        </form>
     </section>
 
-    <section aria-labelledby="filter-heading">
-        <h2 id="filter-heading">Filtrar por Semana</h2>
+    <hr>
+
+    <section>
+        <h2>Visualização das Coleções</h2>
+        
         <div class="filter-controls">
-            <select id="filterWeek">
-                <option value="">Selecione uma semana</option>
-            </select>
+            <label for="filterWeek">Filtrar por Semana:</label>
+            <select id="filterWeek"></select>
             <button onclick="clearFilter()">Limpar Filtro</button>
         </div>
-    </section>
 
-    <section aria-labelledby="collections-heading">
-        <h2 id="collections-heading">Coleções</h2>
-        <div id="collectionsTables">
-            <div id="RTP_1Table">
+        <div id="tablesContainer">
+            <div class="collection-section">
                 <h3>RTP 1</h3>
                 <div class="export-controls">
-                    <label for="export-format-RTP_1">Formato:</label>
                     <select id="export-format-RTP_1">
+                        <option value="pdf">PDF (Cores)</option>
                         <option value="txt">TXT</option>
-                        <option value="pdf">PDF</option>
                     </select>
                     <button onclick="exportFilteredCollection('RTP 1', document.getElementById('filterWeek').value, 'export-format-RTP_1')">Exportar RTP 1</button>
                 </div>
                 <table>
                     <thead>
                         <tr>
-                            <th onclick="sortTable('RTP 1', 'programName', this)">Nome do Programa</th>
-                            <th onclick="sortTable('RTP 1', 'processNumber', this)">Número de Processo</th>
-                            <th onclick="sortTable('RTP 1', 'week', this)">Semana</th>
-                            <th onclick="sortTable('RTP 1', 'day', this)">Dia</th>
-                            <th onclick="sortTable('RTP 1', 'date', this)">Data</th>
-                            <th onclick="sortTable('RTP 1', 'time', this)">Hora</th>
-                            <th onclick="sortTable('RTP 1', 'rightsDuration', this)">Duração de Direitos</th>
-                            <th onclick="sortTable('RTP 1', 'programType', this)">Tipo de Programa</th>
-                            <th onclick="sortTable('RTP 1', 'category', this)">Categoria</th>
+                            <th>Nome</th>
+                            <th>Processo</th>
+                            <th>Sem.</th>
+                            <th>Dia</th>
+                            <th>Data</th>
+                            <th>Hora</th>
+                            <th>Direitos</th>
+                            <th>Tipo</th>
+                            <th>Categoria</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="RTP_1TableBody"></tbody>
                 </table>
             </div>
-            <div id="RTP_2Table">
+
+            <div class="collection-section">
                 <h3>RTP 2</h3>
                 <div class="export-controls">
-                    <label for="export-format-RTP_2">Formato:</label>
                     <select id="export-format-RTP_2">
+                        <option value="pdf">PDF (Cores)</option>
                         <option value="txt">TXT</option>
-                        <option value="pdf">PDF</option>
                     </select>
                     <button onclick="exportFilteredCollection('RTP 2', document.getElementById('filterWeek').value, 'export-format-RTP_2')">Exportar RTP 2</button>
                 </div>
                 <table>
                     <thead>
                         <tr>
-                            <th onclick="sortTable('RTP 2', 'programName', this)">Nome do Programa</th>
-                            <th onclick="sortTable('RTP 2', 'processNumber', this)">Número de Processo</th>
-                            <th onclick="sortTable('RTP 2', 'week', this)">Semana</th>
-                            <th onclick="sortTable('RTP 2', 'day', this)">Dia</th>
-                            <th onclick="sortTable('RTP 2', 'date', this)">Data</th>
-                            <th onclick="sortTable('RTP 2', 'time', this)">Hora</th>
-                            <th onclick="sortTable('RTP 2', 'rightsDuration', this)">Duração de Direitos</th>
-                            <th onclick="sortTable('RTP 2', 'programType', this)">Tipo de Programa</th>
-                            <th onclick="sortTable('RTP 2', 'category', this)">Categoria</th>
+                            <th>Nome</th>
+                            <th>Processo</th>
+                            <th>Sem.</th>
+                            <th>Dia</th>
+                            <th>Data</th>
+                            <th>Hora</th>
+                            <th>Direitos</th>
+                            <th>Tipo</th>
+                            <th>Categoria</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="RTP_2TableBody"></tbody>
                 </table>
             </div>
-            <div id="RTP_3Table">
+
+            <div class="collection-section">
                 <h3>RTP 3</h3>
                 <div class="export-controls">
-                    <label for="export-format-RTP_3">Formato:</label>
                     <select id="export-format-RTP_3">
+                        <option value="pdf">PDF (Cores)</option>
                         <option value="txt">TXT</option>
-                        <option value="pdf">PDF</option>
                     </select>
                     <button onclick="exportFilteredCollection('RTP 3', document.getElementById('filterWeek').value, 'export-format-RTP_3')">Exportar RTP 3</button>
                 </div>
                 <table>
                     <thead>
                         <tr>
-                            <th onclick="sortTable('RTP 3', 'programName', this)">Nome do Programa</th>
-                            <th onclick="sortTable('RTP 3', 'processNumber', this)">Número de Processo</th>
-                            <th onclick="sortTable('RTP 3', 'week', this)">Semana</th>
-                            <th onclick="sortTable('RTP 3', 'day', this)">Dia</th>
-                            <th onclick="sortTable('RTP 3', 'date', this)">Data</th>
-                            <th onclick="sortTable('RTP 3', 'time', this)">Hora</th>
-                            <th onclick="sortTable('RTP 3', 'rightsDuration', this)">Duração de Direitos</th>
-                            <th onclick="sortTable('RTP 3', 'programType', this)">Tipo de Programa</th>
-                            <th onclick="sortTable('RTP 3', 'category', this)">Categoria</th>
+                            <th>Nome</th>
+                            <th>Processo</th>
+                            <th>Sem.</th>
+                            <th>Dia</th>
+                            <th>Data</th>
+                            <th>Hora</th>
+                            <th>Direitos</th>
+                            <th>Tipo</th>
+                            <th>Categoria</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="RTP_3TableBody"></tbody>
                 </table>
             </div>
-            <div id="RTP_MemoriaTable">
+
+            <div class="collection-section">
                 <h3>RTP Memória</h3>
                 <div class="export-controls">
-                    <label for="export-format-RTP_Memoria">Formato:</label>
                     <select id="export-format-RTP_Memoria">
+                        <option value="pdf">PDF (Cores)</option>
                         <option value="txt">TXT</option>
-                        <option value="pdf">PDF</option>
                     </select>
                     <button onclick="exportFilteredCollection('RTP Memoria', document.getElementById('filterWeek').value, 'export-format-RTP_Memoria')">Exportar RTP Memória</button>
                 </div>
                 <table>
                     <thead>
                         <tr>
-                            <th onclick="sortTable('RTP Memoria', 'programName', this)">Nome do Programa</th>
-                            <th onclick="sortTable('RTP Memoria', 'processNumber', this)">Número de Processo</th>
-                            <th onclick="sortTable('RTP Memoria', 'week', this)">Semana</th>
-                            <th onclick="sortTable('RTP Memoria', 'day', this)">Dia</th>
-                            <th onclick="sortTable('RTP Memoria', 'date', this)">Data</th>
-                            <th onclick="sortTable('RTP Memoria', 'time', this)">Hora</th>
-                            <th onclick="sortTable('RTP Memoria', 'rightsDuration', this)">Duração de Direitos</th>
-                            <th onclick="sortTable('RTP Memoria', 'programType', this)">Tipo de Programa</th>
-                            <th onclick="sortTable('RTP Memoria', 'category', this)">Categoria</th>
+                            <th>Nome</th>
+                            <th>Processo</th>
+                            <th>Sem.</th>
+                            <th>Dia</th>
+                            <th>Data</th>
+                            <th>Hora</th>
+                            <th>Direitos</th>
+                            <th>Tipo</th>
+                            <th>Categoria</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
                     <tbody id="RTP_MemoriaTableBody"></tbody>
                 </table>
             </div>
-            <div id="RTP_AfricaTable">
+
+            <div class="collection-section">
                 <h3>RTP África</h3>
                 <div class="export-controls">
-                    <label for="export-format-RTP_Africa">Formato:</label>
                     <select id="export-format-RTP_Africa">
+                        <option value="pdf">PDF (Cores)</option>
                         <option value="txt">TXT</option>
-                        <option value="pdf">PDF</option>
                     </select>
                     <button onclick="exportFilteredCollection('RTP Africa', document.getElementById('filterWeek').value, 'export-format-RTP_Africa')">Exportar RTP África</button>
                 </div>
                 <table>
                     <thead>
                         <tr>
-                            <th onclick="sortTable('RTP Africa', 'programName', this)">Nome do Programa</th>
-                            <th onclick="sortTable('RTP Africa', 'processNumber', this)">Número de Processo</th>
-                            <th onclick="sortTable('RTP Africa', 'week', this)">Semana</th>
-                            <th onclick="sortTable('RTP Africa', 'day', this)">Dia</th>
-                            <th onclick="sortTable('RTP Africa', 'date', this)">Data</th>
-                            <th onclick="sortTable('RTP Africa', 'time', this)">Hora</th>
-                            <th onclick="sortTable('RTP Africa', 'rightsDuration', this)">Duração de Direitos</th>
-                            <th onclick="sortTable('RTP Africa', 'programType', this)">Tipo de Programa</th>
-                            <th onclick="sortTable('RTP Africa', 'category', this)">Categoria</th>
+                            <th>Nome</th>
+                            <th>Processo</th>
+                            <th>Sem.</th>
+                            <th>Dia</th>
+                            <th>Data</th>
+                            <th>Hora</th>
+                            <th>Direitos</th>
+                            <th>Tipo</th>
+                            <th>Categoria</th>
                             <th>Ações</th>
                         </tr>
                     </thead>
@@ -250,5 +259,14 @@
             </div>
         </div>
     </section>
+
+    <section class="danger-zone">
+        <h2>Gestão de Dados</h2>
+        <button onclick="exportBackup()">Exportar Backup (JSON)</button>
+        <button onclick="importBackup()">Importar Backup</button>
+        <input type="file" id="importFile" style="display: none;" accept=".json">
+        <button class="danger-button" onclick="resetAllData()">Apagar Tudo</button>
+    </section>
+
 </body>
 </html>
