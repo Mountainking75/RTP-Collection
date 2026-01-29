@@ -1,18 +1,19 @@
 const COLLECTIONS = ['RTP 1', 'RTP 2', 'RTP 3', 'RTP Memoria', 'RTP Africa'];
 let collections = Object.fromEntries(COLLECTIONS.map(c => [c, []]));
 
+// Variáveis de controlo de edição
+let editMode = false;
+let editingId = null;
+let editingCollection = null;
+
 const dayMap = {
-  'Segunda-feira': 1,
-  'Terça-feira': 2,
-  'Quarta-feira': 3,
-  'Quinta-feira': 4,
-  'Sexta-feira': 5,
-  'Sábado': 6,
-  'Domingo': 7
+  'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3, 'Quinta-feira': 4,
+  'Sexta-feira': 5, 'Sábado': 6, 'Domingo': 7
 };
 
 const days = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
 
+// --- LÓGICA DE DATAS ---
 function getMondayOfFirstWeek(year) {
   const jan1 = new Date(year, 0, 1);
   const day = jan1.getDay(); 
@@ -28,59 +29,19 @@ function populateWeeks() {
   if (!weekSelect || !filterSelect) return;
   
   weekSelect.innerHTML = '';
-  filterSelect.innerHTML = '<option value="">Selecione uma semana</option>';
+  filterSelect.innerHTML = '<option value="">Todas as semanas</option>';
 
-  const startYear = 2026;
-  const endYear = 2030;
-
-  for (let y = startYear; y <= endYear; y++) {
+  for (let y = 2026; y <= 2030; y++) {
     for (let w = 1; w <= 54; w++) {
       const monday = getMondayOfFirstWeek(y);
       monday.setDate(monday.getDate() + (w - 1) * 7);
-      const nextYearFirstMonday = getMondayOfFirstWeek(y + 1);
-      if (monday >= nextYearFirstMonday) break;
+      if (monday >= getMondayOfFirstWeek(y + 1)) break;
 
       const value = `${w}/${y}`;
-      const label = `Semana ${w}/${y}`;
-
-      const opt = document.createElement('option');
-      opt.value = value;
-      opt.textContent = label;
-      weekSelect.appendChild(opt);
-
-      const optFilter = opt.cloneNode(true);
-      filterSelect.appendChild(optFilter);
+      const opt = new Option(`Semana ${value}`, value);
+      weekSelect.add(opt);
+      filterSelect.add(opt.cloneNode(true));
     }
-  }
-}
-
-function populateRepeatDays() {
-  const container = document.getElementById('repeatDays');
-  if (!container) return;
-  container.innerHTML = '';
-  days.forEach(day => {
-    const div = document.createElement('div');
-    div.className = 'repeat-day';
-    div.innerHTML = `
-      <label>${day}:</label>
-      <input type="checkbox" id="repeat-${day}">
-      <input type="time" id="time-${day}" disabled>
-    `;
-    container.appendChild(div);
-    div.querySelector('input[type="checkbox"]').addEventListener('change', e => {
-      div.querySelector('input[type="time"]').disabled = !e.target.checked;
-    });
-  });
-}
-
-function updateDateField() {
-  const week = document.getElementById('week').value;
-  const day = document.getElementById('day').value;
-  const dateInput = document.getElementById('date');
-  if (week && day) {
-    dateInput.value = calculateDate(week, day);
-  } else {
-    dateInput.value = '';
   }
 }
 
@@ -93,10 +54,14 @@ function calculateDate(weekStr, dayName) {
   return d.toISOString().slice(0, 10);
 }
 
-function addToCollection() {
-  const error = document.getElementById('errorMessages');
-  error.innerHTML = '';
+function updateDateField() {
+  const week = document.getElementById('week').value;
+  const day = document.getElementById('day').value;
+  if (week && day) document.getElementById('date').value = calculateDate(week, day);
+}
 
+// --- GESTÃO DE ENTRADAS ---
+function addToCollection() {
   const collection = document.getElementById('collection').value;
   const programName = document.getElementById('programName').value.trim();
   const processNumber = document.getElementById('processNumber').value.trim();
@@ -106,57 +71,91 @@ function addToCollection() {
   const category = document.getElementById('category').value;
   const isRepeat = document.getElementById('isRepeat').checked;
 
-  if (!programName || !processNumber || !week || !rightsDuration || !programType) {
-    error.innerHTML = 'Preencha todos os campos obrigatórios.';
-    return;
-  }
-
-  const entries = [];
-
-  if (!isRepeat) {
-    const day = document.getElementById('day').value;
-    const time = document.getElementById('time').value;
-    const date = document.getElementById('date').value;
-    if (!time || !date) {
-      error.innerHTML = 'Preencha a hora e verifique a data.';
-      return;
+  if (editMode) {
+    // Modo Edição: Remover da coleção antiga e atualizar
+    if (editingCollection !== collection) {
+      collections[editingCollection] = collections[editingCollection].filter(e => e.id !== editingId);
     }
-    entries.push({ id: Date.now() + Math.random(), programName, processNumber, week, day, date, time, rightsDuration, programType, category });
+
+    const updatedEntry = {
+      id: editingId, programName, processNumber, week,
+      day: document.getElementById('day').value,
+      date: document.getElementById('date').value,
+      time: document.getElementById('time').value,
+      rightsDuration, programType, category
+    };
+
+    if (editingCollection === collection) {
+      const idx = collections[collection].findIndex(e => e.id === editingId);
+      collections[collection][idx] = updatedEntry;
+    } else {
+      collections[collection].push(updatedEntry);
+    }
+    notify('Entrada atualizada!');
   } else {
-    let hasOne = false;
-    let errMsg = '';
-    days.forEach(day => {
-      const cb = document.getElementById(`repeat-${day}`);
-      if (cb && cb.checked) {
-        const timeVal = document.getElementById(`time-${day}`).value;
-        if (!timeVal) {
-          errMsg += `Hora obrigatória para ${day}.<br>`;
-        } else {
-          const date = calculateDate(week, day);
-          entries.push({ id: Date.now() + Math.random(), programName, processNumber, week, day, date, time: timeVal, rightsDuration, programType, category });
-          hasOne = true;
+    // Modo Adição Normal
+    if (!isRepeat) {
+      collections[collection].push({
+        id: Date.now() + Math.random(), programName, processNumber, week,
+        day: document.getElementById('day').value,
+        date: document.getElementById('date').value,
+        time: document.getElementById('time').value,
+        rightsDuration, programType, category
+      });
+    } else {
+      days.forEach(d => {
+        const cb = document.getElementById(`repeat-${d}`);
+        if (cb && cb.checked) {
+          collections[collection].push({
+            id: Date.now() + Math.random(), programName, processNumber, week,
+            day: d, date: calculateDate(week, d),
+            time: document.getElementById(`time-${d}`).value,
+            rightsDuration, programType, category
+          });
         }
-      }
-    });
-    if (errMsg) { error.innerHTML = errMsg; return; }
-    if (!hasOne) { error.innerHTML = 'Selecione pelo menos um dia.'; return; }
+      });
+    }
+    notify('Adicionado com sucesso!');
   }
 
-  entries.forEach(e => collections[collection].push(e));
   saveToLocalStorage();
   renderAllTables(document.getElementById('filterWeek').value);
   clearForm();
-  notify('Adicionado com sucesso!');
 }
 
-function clearForm() {
-  document.getElementById('form').reset();
+function editEntry(col, id) {
+  const entry = collections[col].find(e => e.id == id);
+  if (!entry) return;
+
+  editMode = true;
+  editingId = id;
+  editingCollection = col;
+
+  document.getElementById('collection').value = col;
+  document.getElementById('programName').value = entry.programName;
+  document.getElementById('processNumber').value = entry.processNumber;
+  document.getElementById('week').value = entry.week;
+  document.getElementById('day').value = entry.day;
+  document.getElementById('date').value = entry.date;
+  document.getElementById('time').value = entry.time;
+  document.getElementById('rightsDuration').value = entry.rightsDuration;
+  document.getElementById('programType').value = entry.programType;
+  document.getElementById('category').value = entry.category;
+
+  document.getElementById('submitBtn').textContent = 'Atualizar Entrada';
+  document.getElementById('form-title').textContent = 'Editar Entrada';
+  document.getElementById('isRepeat').checked = false;
   document.getElementById('repeatSection').style.display = 'none';
-  document.getElementById('date').value = '';
-  document.querySelectorAll('#repeatDays input[type="checkbox"]').forEach(cb => {
-    cb.checked = false;
-    cb.dispatchEvent(new Event('change'));
-  });
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteEntryById(col, id) {
+  if (confirm('Deseja apagar apenas esta entrada selecionada?')) {
+    collections[col] = collections[col].filter(e => e.id != id);
+    saveToLocalStorage();
+    renderAllTables(document.getElementById('filterWeek').value);
+    notify('Entrada removida.');
+  }
 }
 
 function renderAllTables(filter = '') {
@@ -166,175 +165,136 @@ function renderAllTables(filter = '') {
     if (!tbody) return;
     tbody.innerHTML = '';
     
-    let data = [...collections[col]];
-
-    // ORDENAÇÃO AUTOMÁTICA (Data > Hora)
-    data.sort((a, b) => {
-      if (a.date !== b.date) return new Date(a.date) - new Date(b.date);
-      return a.time.localeCompare(b.time);
-    });
-
+    let data = [...collections[col]].sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
     if (filter) data = data.filter(e => e.week === filter);
 
     if (data.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="no-results">Sem resultados</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" class="no-results">Sem dados</td></tr>';
       return;
     }
 
-    data.forEach((e) => {
+    data.forEach(e => {
+      if (!e.id) e.id = Date.now() + Math.random(); // Garante ID para dados antigos
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>${e.programName}</td>
-        <td>${e.processNumber}</td>
-        <td>${e.week}</td>
-        <td>${e.day}</td>
-        <td>${e.date}</td>
-        <td>${e.time}</td>
-        <td>${e.rightsDuration}</td>
-        <td>${e.programType}</td>
+        <td>${e.programName}</td><td>${e.processNumber}</td><td>${e.week}</td>
+        <td>${e.day}</td><td>${e.date}</td><td>${e.time}</td>
+        <td>${e.rightsDuration}</td><td>${e.programType}</td>
         <td class="${e.category.toLowerCase()}">${e.category}</td>
-        <td><button onclick="deleteEntryById('${col}', ${e.id})">Apagar</button></td>
+        <td class="actions-cell">
+          <button class="edit-btn" onclick="editEntry('${col}', ${e.id})">Editar</button>
+          <button class="danger-button" onclick="deleteEntryById('${col}', ${e.id})">Apagar</button>
+        </td>
       `;
       tbody.appendChild(tr);
     });
   });
 }
 
-function deleteEntryById(col, id) {
-  if (confirm('Deseja apagar esta entrada?')) {
-    // Filtra pelo ID único para não apagar a coleção errada ou inteira
-    collections[col] = collections[col].filter(e => e.id !== id);
-    saveToLocalStorage();
-    renderAllTables(document.getElementById('filterWeek').value);
-    notify('Entrada removida');
-  }
-}
-
-function clearFilter() {
-  document.getElementById('filterWeek').value = '';
-  renderAllTables();
-}
-
-function exportFilteredCollection(col, week, id) {
-  const fmt = document.getElementById(id).value;
-  let data = [...collections[col]];
-  
-  data.sort((a, b) => {
-    if (a.date !== b.date) return new Date(a.date) - new Date(b.date);
-    return a.time.localeCompare(b.time);
-  });
-  
+// --- EXPORTAÇÃO E BACKUP ---
+function exportFilteredCollection(col, week, selectId) {
+  const fmt = document.getElementById(selectId).value;
+  let data = [...collections[col]].sort((a,b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time));
   if (week) data = data.filter(e => e.week === week);
-  if (!data.length) return alert('Nada para exportar');
-  
+  if (!data.length) return alert('Sem dados para exportar');
   fmt === 'pdf' ? exportPDF(col, data) : exportTXT(col, data);
-}
-
-function exportTXT(col, data) {
-  let txt = `Coleção: ${col}\n`;
-  txt += `Gerado em: ${new Date().toLocaleString()}\n`;
-  txt += `--------------------------------------------------\n`;
-  txt += `Programa | Proc. | Sem. | Data | Hora | Direitos | Tipo\n`;
-  txt += `--------------------------------------------------\n`;
-  data.forEach(e => {
-    txt += `${e.programName} | ${e.processNumber} | ${e.week} | ${e.date} | ${e.time} | ${e.rightsDuration} | ${e.programType}\n`;
-  });
-  download(txt, `${col}.txt`, 'text/plain');
 }
 
 function exportPDF(col, data) {
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF('landscape'); 
-  
-  doc.setFontSize(16);
+  const doc = new jsPDF('landscape');
   doc.text(`Coleção: ${col}`, 14, 15);
-  doc.setFontSize(10);
-  doc.text(`Filtro: ${document.getElementById('filterWeek').value || 'Todas as semanas'}`, 14, 22);
-
-  doc.autoTable({ 
-    startY: 30, 
-    head: [['Programa','Processo','Semana','Data','Hora','Direitos','Tipo','Categoria']], 
+  doc.autoTable({
+    startY: 25,
+    head: [['Programa','Processo','Sem.','Data','Hora','Direitos','Tipo','Categoria']],
     body: data.map(e => [e.programName, e.processNumber, e.week, e.date, e.time, e.rightsDuration, e.programType, e.category]),
-    styles: { fontSize: 8 },
-    headStyles: { fillColor: [44, 62, 80] },
-    didParseCell: function(data) {
-      if (data.section === 'body' && data.column.index === 7) {
-        const cat = data.cell.raw.toUpperCase();
-        if (cat === 'NOVIDADE') data.cell.styles.fillColor = [40, 167, 69];
-        else if (cat === 'ESTREIA') data.cell.styles.fillColor = [220, 53, 69];
-        else if (cat === 'REPETIÇÃO' || cat === 'REPETICAO') data.cell.styles.fillColor = [0, 123, 255];
-        if (['NOVIDADE', 'ESTREIA', 'REPETIÇÃO', 'REPETICAO'].includes(cat)) {
-          data.cell.styles.textColor = [255, 255, 255];
-          data.cell.styles.fontStyle = 'bold';
-        }
+    didParseCell: function(d) {
+      if (d.section === 'body' && d.column.index === 7) {
+        const cat = d.cell.raw.toUpperCase();
+        if (cat === 'NOVIDADE') d.cell.styles.fillColor = [40, 167, 69];
+        else if (cat === 'ESTREIA') d.cell.styles.fillColor = [220, 53, 69];
+        else if (cat.includes('REPETI')) d.cell.styles.fillColor = [0, 123, 255];
+        if (d.cell.styles.fillColor) d.cell.styles.textColor = [255, 255, 255];
       }
     }
   });
   doc.save(`${col}.pdf`);
 }
 
-function download(content, name, type) {
+function exportTXT(col, data) {
+  let content = `Coleção: ${col}\nPrograma | Proc. | Sem. | Data | Hora\n` + 
+    data.map(e => `${e.programName} | ${e.processNumber} | ${e.week} | ${e.date} | ${e.time}`).join('\n');
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([content], {type}));
-  a.download = name;
-  a.click();
-}
-
-function saveToLocalStorage() { localStorage.setItem('collections', JSON.stringify(collections)); }
-
-function loadFromLocalStorage() {
-  const d = localStorage.getItem('collections');
-  if (d) collections = JSON.parse(d);
-}
-
-function resetAllData() {
-  if (confirm('Apagar TODOS os dados? Irreversível!')) {
-    collections = Object.fromEntries(COLLECTIONS.map(c => [c, []]));
-    localStorage.removeItem('collections');
-    renderAllTables();
-    notify('Dados apagados');
-  }
+  a.href = URL.createObjectURL(new Blob([content], {type: 'text/plain'}));
+  a.download = `${col}.txt`; a.click();
 }
 
 function exportBackup() {
-  download(JSON.stringify(collections, null, 2), `backup_rtp_${new Date().toISOString().slice(0,10)}.json`, 'application/json');
-  notify('Backup exportado');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(collections, null, 2)], {type: 'application/json'}));
+  a.download = `backup_rtp_${new Date().toISOString().slice(0,10)}.json`; a.click();
 }
 
 function importBackup() { document.getElementById('importFile').click(); }
 
-function notify(msg) {
-  const n = document.getElementById('notification');
-  if (!n) return;
-  n.textContent = msg;
-  n.classList.add('show');
-  setTimeout(() => { n.classList.remove('show'); n.textContent = ''; }, 4000);
+function resetAllData() {
+  if (confirm('CUIDADO: Apagar TODOS os dados de todos os canais?')) {
+    collections = Object.fromEntries(COLLECTIONS.map(c => [c, []]));
+    saveToLocalStorage(); renderAllTables(); notify('Dados limpos.');
+  }
 }
 
-// Eventos
-document.getElementById('week').addEventListener('change', updateDateField);
-document.getElementById('day').addEventListener('change', updateDateField);
-document.getElementById('isRepeat').addEventListener('change', function() {
-  document.getElementById('repeatSection').style.display = this.checked ? 'block' : 'none';
-});
-document.getElementById('filterWeek').addEventListener('change', e => renderAllTables(e.target.value));
-document.getElementById('importFile').addEventListener('change', e => {
-  const file = e.target.files[0];
-  if (!file || !confirm('Substituir todos os dados?')) return;
-  const reader = new FileReader();
-  reader.onload = ev => {
-    try {
-      collections = JSON.parse(ev.target.result);
-      saveToLocalStorage();
-      renderAllTables();
-      notify('Backup importado');
-    } catch { alert('Ficheiro inválido'); }
-  };
-  reader.readAsText(file);
-});
+// --- UTILITÁRIOS ---
+function clearForm() {
+  editMode = false; editingId = null;
+  document.getElementById('form').reset();
+  document.getElementById('submitBtn').textContent = 'Adicionar';
+  document.getElementById('form-title').textContent = 'Adicionar Entrada';
+  document.getElementById('repeatSection').style.display = 'none';
+  updateDateField();
+}
 
-// Inicialização
-loadFromLocalStorage();
-populateWeeks();
-populateRepeatDays();
-renderAllTables();
+function saveToLocalStorage() { localStorage.setItem('rtp_collections_vfinal', JSON.stringify(collections)); }
+function loadFromLocalStorage() {
+  const d = localStorage.getItem('rtp_collections_vfinal');
+  if (d) collections = JSON.parse(d);
+}
+
+function notify(msg) {
+  const n = document.getElementById('notification');
+  n.textContent = msg; n.classList.add('show');
+  setTimeout(() => n.classList.remove('show'), 3000);
+}
+
+function clearFilter() { document.getElementById('filterWeek').value = ''; renderAllTables(); }
+
+function populateRepeatDays() {
+  const container = document.getElementById('repeatDays');
+  days.forEach(day => {
+    const div = document.createElement('div');
+    div.innerHTML = `<label><input type="checkbox" id="repeat-${day}"> ${day}</label>
+                     <input type="time" id="time-${day}" disabled style="width: 80px; margin-left: 10px;">`;
+    container.appendChild(div);
+    div.querySelector('input[type="checkbox"]').onchange = e => div.querySelector('input[type="time"]').disabled = !e.target.checked;
+  });
+}
+
+// --- INICIALIZAÇÃO ---
+window.onload = () => {
+  loadFromLocalStorage();
+  populateWeeks();
+  populateRepeatDays();
+  renderAllTables();
+  
+  document.getElementById('week').onchange = updateDateField;
+  document.getElementById('day').onchange = updateDateField;
+  document.getElementById('isRepeat').onchange = e => document.getElementById('repeatSection').style.display = e.target.checked ? 'block' : 'none';
+  document.getElementById('filterWeek').onchange = e => renderAllTables(e.target.value);
+  document.getElementById('importFile').onchange = e => {
+    const reader = new FileReader();
+    reader.onload = ev => { 
+      try { collections = JSON.parse(ev.target.result); saveToLocalStorage(); renderAllTables(); } catch { alert('Erro!'); }
+    };
+    reader.readAsText(e.target.files[0]);
+  };
+};
