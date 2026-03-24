@@ -47,21 +47,22 @@ function updateDashboard() {
 
 // --- LÓGICA DE DATAS ---
 function getMonday(year) {
-    const jan1 = new Date(year, 0, 1);
-    const day = jan1.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    const mon = new Date(jan1);
-    mon.setDate(jan1.getDate() + diff);
+    const jan4 = new Date(year, 0, 4);
+    const day = jan4.getDay() || 7;
+    const mon = new Date(jan4);
+    mon.setDate(jan4.getDate() - (day - 1));
     return mon;
 }
 
 function populateWeeks() {
     const ws = document.getElementById('week'), fs = document.getElementById('filterWeek');
+    ws.innerHTML = '';
     fs.innerHTML = '<option value="">Todas as Semanas</option>';
     for (let y = 2026; y <= 2030; y++) {
         for (let w = 1; w <= 53; w++) {
-            const m = getMonday(y);
-            m.setDate(m.getDate() + (w - 1) * 7);
+            const base = getMonday(y);
+            const m = new Date(base);
+            m.setDate(base.getDate() + (w - 1) * 7);
             if (m.getFullYear() > y && w > 1) break;
             const v = `${w}/${y}`;
             const opt = new Option(`Semana ${v}`, v);
