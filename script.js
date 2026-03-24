@@ -75,9 +75,9 @@ function updateDateField() {
     const w = document.getElementById('week').value, d = document.getElementById('day').value;
     if (w && d) {
         const [wk, yr] = w.split('/').map(Number);
-        const date = getMonday(yr);
-        date.setDate(date.getDate() + (wk - 1) * 7 + (dayMap[d] - 1));
-        document.getElementById('date').value = date.toISOString().slice(0, 10);
+        const base = getMonday(yr);
+        const utc = Date.UTC(base.getFullYear(), base.getMonth(), base.getDate() + (wk - 1) * 7 + (dayMap[d] - 1));
+        document.getElementById('date').value = new Date(utc).toISOString().slice(0, 10);
     }
 }
 
@@ -106,14 +106,15 @@ function addToCollection() {
             collections[col].push({ ...common, id: Date.now() + Math.random(), day: document.getElementById('day').value, date: document.getElementById('date').value, time: document.getElementById('time').value });
         } else {
             daysList.forEach(d => {
-                const cb = document.getElementById(`repeat-${d}`);
-                if (cb && cb.checked) {
-                    const [wk, yr] = common.week.split('/').map(Number);
-                    const date = getMonday(yr);
-                    date.setDate(date.getDate() + (wk - 1) * 7 + (dayMap[d] - 1));
-                    collections[col].push({ ...common, id: Date.now() + Math.random(), day: d, date: date.toISOString().slice(0, 10), time: document.getElementById(`time-${d}`).value });
-                }
-            });
+    const cb = document.getElementById(`repeat-${d}`);
+    if (cb && cb.checked) {
+        const [wk, yr] = common.week.split('/').map(Number);
+        const base = getMonday(yr);
+        const utc = Date.UTC(base.getFullYear(), base.getMonth(), base.getDate() + (wk - 1) * 7 + (dayMap[d] - 1));
+        const dateStr = new Date(utc).toISOString().slice(0, 10);
+        collections[col].push({ ...common, id: Date.now() + Math.random(), day: d, date: dateStr, time: document.getElementById(`time-${d}`).value });
+    }
+});
         }
         notify("Adicionado com sucesso!");
     }
