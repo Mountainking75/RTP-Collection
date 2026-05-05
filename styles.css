@@ -105,6 +105,77 @@ th { background: rgba(0,0,0,0.05); }
 }
 .notification.show { display: block; }
 
+
+/* LEGENDA DE CATEGORIAS */
+.legend-section {
+    margin: 30px 0 10px;
+    background: var(--bg-card);
+    border-radius: 10px;
+    padding: 20px 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+}
+
+.legend-section h2 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+    color: var(--text-main);
+}
+
+.legend-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.legend-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.82em;
+    min-width: 100px;
+    text-align: center;
+    flex-shrink: 0;
+    color: white;
+}
+
+.legend-badge.novidade  { background: var(--success); }
+.legend-badge.estreia   { background: var(--danger); }
+.legend-badge.repeticao { background: var(--primary); }
+
+.legend-desc {
+    font-size: 0.9em;
+    color: var(--text-main);
+    opacity: 0.85;
+}
+
+.legend-tip {
+    background: rgba(0, 123, 255, 0.07);
+    border-left: 4px solid var(--primary);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 15px;
+    font-size: 0.88em;
+    color: var(--text-main);
+    line-height: 1.5;
+}
+
+
+/* ROW FLASH — highlight newly added rows */
+@keyframes rowFlash {
+    0%   { background-color: rgba(40, 167, 69, 0.35); }
+    70%  { background-color: rgba(40, 167, 69, 0.15); }
+    100% { background-color: transparent; }
+}
+tr.row-flash { animation: rowFlash 2.5s ease-out forwards; }
+
 @media (max-width: 800px) {
     .form-row { flex-direction: column; }
     table { display: block; overflow-x: auto; }

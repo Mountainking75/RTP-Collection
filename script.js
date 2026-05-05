@@ -4,6 +4,7 @@ let collections = Object.fromEntries(COLLECTIONS.map(c => [c, []]));
 let editMode = false;
 let editingId = null;
 let editingCollection = null;
+const recentIds = new Set(); // tracks IDs of rows added in the last few seconds for flash highlight
 
 const dayMap = {'Segunda-feira': 1, 'Terça-feira': 2, 'Quarta-feira': 3, 'Quinta-feira': 4, 'Sexta-feira': 5, 'Sábado': 6, 'Domingo': 7};
 const daysList = ['Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado', 'Domingo'];
@@ -54,6 +55,10 @@ function getMonday(year) {
     return mon;
 }
 
+function formatDatePT(date) {
+    return date.toLocaleDateString('pt-PT', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
 function populateWeeks() {
     const ws = document.getElementById('week'), fs = document.getElementById('filterWeek');
     ws.innerHTML = '';
@@ -61,11 +66,14 @@ function populateWeeks() {
     for (let y = 2026; y <= 2030; y++) {
         for (let w = 1; w <= 53; w++) {
             const base = getMonday(y);
-            const m = new Date(base);
-            m.setDate(base.getDate() + (w - 1) * 7);
-            if (m.getFullYear() > y && w > 1) break;
-            const v = `${w}/${y}`;
-            const opt = new Option(`Semana ${v}`, v);
+            const monday = new Date(base);
+            monday.setDate(base.getDate() + (w - 1) * 7);
+            if (monday.getFullYear() > y && w > 1) break;
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            const v     = `${w}/${y}`;
+            const label = `Semana ${v}  (${formatDatePT(monday)} — ${formatDatePT(sunday)})`;
+            const opt   = new Option(label, v);
             ws.add(opt); fs.add(opt.cloneNode(true));
         }
     }
@@ -103,18 +111,46 @@ function addToCollection() {
         notify("Entrada atualizada!");
     } else {
         if (!document.getElementById('isRepeat').checked) {
-            collections[col].push({ ...common, id: Date.now() + Math.random(), day: document.getElementById('day').value, date: document.getElementById('date').value, time: document.getElementById('time').value });
+            const newId = String(Date.now() + Math.random());
+            recentIds.add(newId);
+            setTimeout(() => recentIds.delete(newId), 3000);
+            collections[col].push({ ...common, id: newId, day: document.getElementById('day').value, date: document.getElementById('date').value, time: document.getElementById('time').value });
         } else {
+            // Always include the primary day/time selected at the top of the form
+            const primaryDay  = document.getElementById('day').value;
+            const primaryTime = document.getElementById('time').value;
+            const primaryDate = document.getElementById('date').value;
+            if (primaryDay && primaryDate) {
+                const pid = String(Date.now() + Math.random());
+                recentIds.add(pid); setTimeout(() => recentIds.delete(pid), 3000);
+                collections[col].push({ ...common, id: pid, day: primaryDay, date: primaryDate, time: primaryTime });
+            }
+            // Validate: all checked extra days must have a time
+            let repeatErrors = [];
             daysList.forEach(d => {
-    const cb = document.getElementById(`repeat-${d}`);
-    if (cb && cb.checked) {
-        const [wk, yr] = common.week.split('/').map(Number);
-        const base = getMonday(yr);
-        const utc = Date.UTC(base.getFullYear(), base.getMonth(), base.getDate() + (wk - 1) * 7 + (dayMap[d] - 1));
-        const dateStr = new Date(utc).toISOString().slice(0, 10);
-        collections[col].push({ ...common, id: Date.now() + Math.random(), day: d, date: dateStr, time: document.getElementById(`time-${d}`).value });
-    }
-});
+                const cb = document.getElementById(`repeat-${d}`);
+                if (cb && cb.checked && d !== primaryDay) {
+                    const t = document.getElementById(`time-${d}`).value;
+                    if (!t) repeatErrors.push(d);
+                }
+            });
+            if (repeatErrors.length > 0) {
+                notify('Hora obrigatória para: ' + repeatErrors.join(', '));
+                return;
+            }
+            // Then add any additional days selected via checkboxes (skip if same as primary to avoid duplicates)
+            daysList.forEach(d => {
+                const cb = document.getElementById(`repeat-${d}`);
+                if (cb && cb.checked && d !== primaryDay) {
+                    const [wk, yr] = common.week.split('/').map(Number);
+                    const base = getMonday(yr);
+                    const utc = Date.UTC(base.getFullYear(), base.getMonth(), base.getDate() + (wk - 1) * 7 + (dayMap[d] - 1));
+                    const dateStr = new Date(utc).toISOString().slice(0, 10);
+                    const rid = String(Date.now() + Math.random());
+                    recentIds.add(rid); setTimeout(() => recentIds.delete(rid), 3000);
+                    collections[col].push({ ...common, id: rid, day: d, date: dateStr, time: document.getElementById(`time-${d}`).value });
+                }
+            });
         }
         notify("Adicionado com sucesso!");
     }
@@ -167,6 +203,11 @@ function renderAllTables(filter = '') {
                     <button class="danger-button" onclick="deleteEntryById('${col}', ${e.id})">✖</button>
                 </td>
             `;
+            // Flash highlight for newly added entries (within last 3 seconds)
+            if (recentIds.has(String(e.id))) {
+                tr.classList.add('row-flash');
+                setTimeout(() => tr.classList.remove('row-flash'), 2500);
+            }
             tbody.appendChild(tr);
         });
     });
@@ -250,8 +291,22 @@ window.onload = () => {
     });
 
     document.getElementById('importFile').onchange = e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        // Reset so the same file can be re-imported if needed
+        e.target.value = '';
+        if (!confirm('Importar este backup irá substituir TODOS os dados actuais. Tem a certeza?')) return;
         const reader = new FileReader();
-        reader.onload = ev => { collections = JSON.parse(ev.target.result); saveData(); renderAllTables(); };
-        reader.readAsText(e.target.files[0]);
+        reader.onload = ev => {
+            try {
+                collections = JSON.parse(ev.target.result);
+                saveData();
+                renderAllTables();
+                notify('Backup importado com sucesso!');
+            } catch {
+                alert('Ficheiro inválido ou corrompido.');
+            }
+        };
+        reader.readAsText(file);
     };
 };
