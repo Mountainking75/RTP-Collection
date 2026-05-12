@@ -79,6 +79,23 @@ function populateWeeks() {
     }
 }
 
+function getCurrentWeekValue() {
+    // Find which week value (e.g. "20/2026") corresponds to today
+    const today = new Date();
+    for (let y = 2026; y <= 2030; y++) {
+        for (let w = 1; w <= 53; w++) {
+            const base = getMonday(y);
+            const monday = new Date(base);
+            monday.setDate(base.getDate() + (w - 1) * 7);
+            if (monday.getFullYear() > y && w > 1) break;
+            const sunday = new Date(monday);
+            sunday.setDate(monday.getDate() + 6);
+            if (today >= monday && today <= sunday) return `${w}/${y}`;
+        }
+    }
+    return null;
+}
+
 function updateDateField() {
     const w = document.getElementById('week').value, d = document.getElementById('day').value;
     if (w && d) {
@@ -102,12 +119,22 @@ function addToCollection() {
     };
 
     if (editMode) {
-        if (editingCollection !== col) collections[editingCollection] = collections[editingCollection].filter(e => e.id !== editingId);
+        // Use == (loose) to handle String/Number id mismatch from localStorage or inline onclick
+        if (editingCollection !== col) {
+            collections[editingCollection] = collections[editingCollection].filter(e => e.id != editingId);
+        }
         const updated = { ...common, id: editingId, day: document.getElementById('day').value, date: document.getElementById('date').value, time: document.getElementById('time').value };
         if (editingCollection === col) {
-            const idx = collections[col].findIndex(e => e.id === editingId);
-            collections[col][idx] = updated;
-        } else collections[col].push(updated);
+            const idx = collections[col].findIndex(e => e.id == editingId);
+            if (idx !== -1) {
+                collections[col][idx] = updated;
+            } else {
+                // Fallback: id not found (edge case) — append
+                collections[col].push(updated);
+            }
+        } else {
+            collections[col].push(updated);
+        }
         notify("Entrada atualizada!");
     } else {
         if (!document.getElementById('isRepeat').checked) {
@@ -275,7 +302,17 @@ function clearFilter() { document.getElementById('filterWeek').value = ''; rende
 window.onload = () => {
     if (localStorage.getItem('dark-mode') === 'true') document.body.classList.add('dark-mode');
     const d = localStorage.getItem('rtp_v4'); if (d) collections = JSON.parse(d);
-    populateWeeks(); renderAllTables();
+    populateWeeks();
+    // Auto-select current week in both dropdowns (user can still change freely)
+    const currentWeek = getCurrentWeekValue();
+    if (currentWeek) {
+        const ws = document.getElementById('week');
+        const fs = document.getElementById('filterWeek');
+        if (ws) ws.value = currentWeek;
+        if (fs) { fs.value = currentWeek; }
+    }
+    updateDateField();
+    renderAllTables(currentWeek || '');
     document.getElementById('week').onchange = updateDateField;
     document.getElementById('day').onchange = updateDateField;
     document.getElementById('isRepeat').onchange = e => document.getElementById('repeatSection').style.display = e.target.checked ? 'block' : 'none';
