@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Metal Global — Radio Script Editor</title>
+    <link rel="stylesheet" href="radio_script_styles.css">
+    <link rel="stylesheet" href="print.css" media="print">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.3/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        /* ── Metal Global branding overrides ── */
+        :root {
+            --mg-red:       #8B0000;
+            --mg-red-light: #a50000;
+            --mg-dark:      #1A1A2E;
+            --mg-mid:       #4A4A6A;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 3px solid var(--mg-red);
+        }
+
+        .header-brand {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header-brand .brand-title {
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            color: var(--mg-red);
+            text-transform: uppercase;
+            line-height: 1;
+            margin: 0;
+        }
+
+        .header-brand .brand-sub {
+            font-size: 0.8rem;
+            color: var(--mg-mid);
+            letter-spacing: 0.08em;
+            margin-top: 3px;
+        }
+
+        body[data-theme='dark'] .header-brand .brand-sub { color: #9a9abf; }
+
+        /* Episode meta bar */
+        .episode-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 24px;
+            margin-bottom: 20px;
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--mg-dark) 0%, #2a2a4a 100%);
+            border-radius: 8px;
+            align-items: center;
+        }
+
+        .episode-meta .meta-item {
+            display: flex;
+            gap: 6px;
+            align-items: baseline;
+        }
+
+        .episode-meta .meta-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: #9a9abf;
+            font-weight: 600;
+        }
+
+        .episode-meta .meta-value {
+            font-size: 0.95rem;
+            color: #e8e8ff;
+            font-weight: 600;
+        }
+
+        .episode-meta .meta-value.highlight { color: #ff6b6b; }
+
+        /* Block section separators within the table */
+        tr.segment-header td {
+            background: linear-gradient(90deg, var(--mg-red) 0%, #5a0000 100%) !important;
+            color: #fff !important;
+            font-weight: 700;
+            font-size: 0.82rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            padding: 6px 15px !important;
+            border-color: var(--mg-red) !important;
+        }
+
+        /* Note rows */
+        tr.note-row td {
+            background: #fff8f8 !important;
+            border-left: 4px solid var(--mg-red) !important;
+            font-style: italic;
+            font-size: 0.85rem;
+            color: #555 !important;
+            padding: 5px 15px 5px 12px !important;
+        }
+        body[data-theme='dark'] tr.note-row td {
+            background: #2a1a1a !important;
+            color: #cc9999 !important;
+        }
+
+        /* Preview extras */
+        .preview-segment {
+            font-weight: 700; color: var(--mg-red); font-size: 0.82rem;
+            letter-spacing: 0.1em; text-transform: uppercase;
+            margin: 14px 0 4px; padding: 4px 8px;
+            border-left: 4px solid var(--mg-red);
+            background: rgba(139,0,0,0.06);
+        }
+        .preview-note {
+            font-style: italic; font-size: 0.82rem; color: #888;
+            padding: 2px 8px 6px 12px; border-left: 2px solid #ccc; margin-bottom: 6px;
+        }
+
+        /* ── PRINT STYLES ── */
+        @media print {
+            .controls, .button-group-export, .time-display,
+            .show-history-controls, .theme-controls,
+            .template-container, .modal, #toast,
+            .segments-container, .preview-container,
+            .episode-meta, .show-info,
+            table thead th:last-child,
+            table tbody td:last-child { display: none !important; }
+
+            body { font-family: Arial, sans-serif; font-size: 10pt; color: #000; margin: 0; padding: 0; background: #fff; }
+            .container { max-width: none; padding: 10mm 14mm; box-shadow: none; border-radius: 0; }
+
+            header { border-bottom: 2pt solid #8B0000; margin-bottom: 5mm; padding-bottom: 3mm; }
+            .header-brand .brand-title { font-size: 20pt; color: #8B0000; }
+            .header-brand .brand-sub   { font-size: 9pt; color: #555; }
+            h3 { display: none; }
+
+            .script-table-container { display: block !important; margin-top: 4mm; overflow: visible; }
+            table { width: 100%; border-collapse: collapse; table-layout: fixed; page-break-inside: auto; font-size: 8.5pt; }
+            thead { display: table-header-group; }
+            th, td { border: 0.5pt solid #ccc; padding: 4pt 5pt; text-align: left; vertical-align: top; word-wrap: break-word; }
+            th { background: #1A1A2E !important; color: #fff !important; font-weight: bold; font-size: 8pt;
+                 -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+            table th:nth-child(1), table td:nth-child(1) { width: 4%; }
+            table th:nth-child(2), table td:nth-child(2) { width: 11%; }
+            table th:nth-child(3), table td:nth-child(3) { width: 58%; }
+            table th:nth-child(4), table td:nth-child(4) { width: 8%; }
+            table th:nth-child(5), table td:nth-child(5) { width: 9%; }
+            table th:last-child,   table td:last-child    { display: none !important; }
+
+            tr.jingle     { background: rgba(255,206,84,0.2)  !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            tr.voice-over { background: rgba(99,179,237,0.15) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            tr.song       { background: rgba(164,219,164,0.2) !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            tr.interview  { background: rgba(255,159,64,0.2)  !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+            tr.segment-header td {
+                background: #8B0000 !important; color: #fff !important;
+                font-weight: bold; font-size: 8pt; letter-spacing: 0.1em;
+                text-transform: uppercase; padding: 4pt 6pt !important;
+                -webkit-print-color-adjust: exact; print-color-adjust: exact;
+                page-break-after: avoid;
+            }
+            tr.note-row td {
+                background: #fff8f8 !important; border-left: 3pt solid #8B0000 !important;
+                font-style: italic; font-size: 8pt; color: #555 !important;
+                padding: 3pt 6pt 3pt 8pt !important;
+                -webkit-print-color-adjust: exact; print-color-adjust: exact;
+            }
+            td textarea {
+                border: none; background: transparent; resize: none;
+                width: 100%; overflow: hidden; padding: 0; margin: 0;
+                font-size: 8.5pt; font-family: Arial, sans-serif;
+                height: auto !important; line-height: 1.4;
+            }
+        }
+
+        /* Import episode button */
+        .load-episode-btn {
+            background: linear-gradient(135deg, var(--mg-red) 0%, #5a0000 100%);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 20px;
+            font-weight: 700;
+            font-size: 0.9rem;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+            transition: opacity 0.2s;
+        }
+        .load-episode-btn:hover { opacity: 0.85; }
+
+        /* Override h1 default centering for our layout */
+        header h1 { text-align: left; margin: 0; }
+
+        /* Subtle red accent on section headers */
+        h3 {
+            border-left: 4px solid var(--mg-red);
+            padding-left: 10px;
+            text-align: left;
+        }
+
+        /* Time display accent */
+        .time-display {
+            background: var(--mg-dark);
+            color: #e8e8ff;
+            border-radius: 8px;
+            padding: 12px 20px;
+        }
+        .time-display p { color: #e8e8ff; }
+        .time-display span { color: #ff9999; font-weight: 700; }
+    </style>
+</head>
+<body data-theme="light">
+<div class="container">
+
+    <header>
+        <div class="header-brand">
+            <h1 class="brand-title">Metal Global</h1>
+            <span class="brand-sub">Radio Script Editor</span>
+        </div>
+        <div class="theme-controls">
+            <button id="themeBtn" class="theme-btn" data-tooltip="Alternar Tema">🌙</button>
+            <button id="themeSettingsBtn" class="theme-btn" data-tooltip="Definições de Tema">🎨</button>
+            <button id="highContrastBtn" class="theme-btn" data-tooltip="Alto Contraste">👁️</button>
+        </div>
+    </header>
+
+    <!-- Episode meta display (read-only, driven by show-info inputs) -->
+    <div class="episode-meta" id="episodeMeta">
+        <div class="meta-item">
+            <span class="meta-label">Episódio</span>
+            <span class="meta-value highlight" id="metaNumber">#984</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Programa</span>
+            <span class="meta-value" id="metaName">Venom</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Apresentador</span>
+            <span class="meta-value">Jorge Botas · @Mountainking</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Contacto</span>
+            <span class="meta-value">jorge.botas@rtp.pt</span>
+        </div>
+        <div class="meta-item">
+            <span class="meta-label">Duração</span>
+            <span class="meta-value">57:09</span>
+        </div>
+    </div>
+
+    <section class="show-info">
+        <input type="text" id="showNumber" placeholder="Nº do Episódio" aria-label="Número do Episódio" value="984">
+        <input type="text" id="showName"   placeholder="Nome do Programa" aria-label="Nome do Programa" value="Venom">
+        <input type="text" id="showDurationInput" placeholder="01:00:00" aria-label="Duração do Programa (hh:mm:ss ou mm:ss)" value="57:09">
+    </section>
+
+    <section class="show-history-controls">
+        <select id="showHistory" aria-label="Selecionar script guardado">
+            <option value="">-- Novo Script --</option>
+        </select>
+        <button id="saveShowBtn" class="btn btn-primary">Guardar Programa</button>
+        <button id="deleteShowBtn" class="btn btn-cancel">Eliminar Selecionado</button>
+        <button class="load-episode-btn" id="loadEpisode984Btn">⚡ Carregar Episódio #984</button>
+    </section>
+
+    <section class="controls">
+        <select id="contentType" aria-label="Tipo de Conteúdo">
+            <option value="jingle_entrada">Jingle de Entrada</option>
+            <option value="jingle_fecho">Jingle de Fecho</option>
+            <option value="jingle_3">Jingle 3</option>
+            <option value="jingle_4">Jingle 4</option>
+            <option value="separador_3">Separador 3</option>
+            <option value="separador_6">Separador 6</option>
+            <option value="voice-over_promo">Promo Voice-over</option>
+            <option value="voice-over">Voice-over</option>
+            <option value="song">Música</option>
+            <option value="interview">Entrevista</option>
+        </select>
+        <textarea id="contentText" placeholder="Conteúdo" aria-label="Conteúdo"></textarea>
+        <input type="text" id="duration" placeholder="mm:ss" aria-label="Duração (mm:ss)">
+        <div class="counter-container">
+            <span>Caracteres: <span id="charCount">0</span> | Palavras: <span id="wordCount">0</span> | Tempo estimado: <span id="estimatedTime">00:00</span></span>
+        </div>
+        <div class="action-buttons">
+            <button id="addBtn" class="btn btn-primary">Adicionar</button>
+            <button id="saveBtn" class="btn btn-primary" style="display: none;">Guardar Edição</button>
+            <button id="cancelBtn" class="btn btn-cancel" style="display: none;">Cancelar Edição</button>
+        </div>
+    </section>
+
+    <section class="segments-container">
+        <h3>Segmentos</h3>
+        <button id="addSegmentBtn" class="btn btn-primary">Adicionar Marcador de Segmento</button>
+        <div id="segmentsList">
+            <p class="no-segments-message">Nenhum segmento adicionado.</p>
+        </div>
+    </section>
+
+    <section class="button-group-export">
+        <button id="exportTextBtn" class="btn btn-export">Exportar para Texto</button>
+        <button id="exportPdfBtn"  class="btn btn-pdf">Exportar para PDF</button>
+        <button id="clearAllBtn"   class="btn btn-clear">Limpar Tudo</button>
+        <button id="undoBtn"       class="btn btn-undo-redo" disabled>Desfazer</button>
+        <button id="redoBtn"       class="btn btn-undo-redo" disabled>Refazer</button>
+    </section>
+
+    <section class="script-table-container table-responsive">
+        <table id="scriptTable">
+            <thead>
+                <tr>
+                    <th>Nº</th>
+                    <th>Tipo</th>
+                    <th>Conteúdo / Locução</th>
+                    <th>Duração</th>
+                    <th>Acumulado</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="scriptTableBody"></tbody>
+        </table>
+    </section>
+
+    <section class="preview-container">
+        <h3>Pré-visualização</h3>
+        <div id="previewContent"></div>
+    </section>
+
+    <section class="time-display">
+        <p>Tempo Utilizado: <span id="timeUsed">00:00</span></p>
+        <p>Tempo Restante: <span id="timeRemaining">00:00:00</span></p>
+    </section>
+
+</div>
+
+<div id="toast" role="alert" aria-live="assertive"></div>
+
+<div id="themeSettingsModal" class="modal">
+    <div class="modal-content">
+        <span id="closeThemeSettings" class="close-button">&times;</span>
+        <h2>Definições de Tema</h2>
+        <div class="form-group">
+            <label for="primaryButtonColor">Cor Principal dos Botões:</label>
+            <input type="color" id="primaryButtonColor" value="#10b981">
+        </div>
+        <div class="form-group">
+            <label for="backgroundPrimaryColor">Cor de Fundo Principal:</label>
+            <input type="color" id="backgroundPrimaryColor" value="#e6f0fa">
+        </div>
+        <button id="saveThemeSettings" class="btn btn-primary">Guardar Definições</button>
+    </div>
+</div>
+
+<input type="file" id="importScript" style="display: none;" accept=".txt">
+<script src="radio_script_logic.js"></script>
+
+<script>
+// ── Episode #984 data ──────────────────────────────────────────────────────
+const EPISODE_984 = [
+    // BLOCO 1 — ABERTURA
+    { contentType: 'jingle_entrada', content: 'Jingle de Entrada',          duration: '0:58', _segment: 'BLOCO 1 — ABERTURA' },
+    { contentType: 'song',           content: 'Venom — «Death the Leveller»', duration: '3:21' },
+    { contentType: 'voice-over',
+      content: 'Os Venom não precisam de apresentações — e quarenta e cinco anos depois do seu nascimento em Newcastle, continuam a provar que não perderam nada do veneno original. A banda que abriu caminho ao metal extremo e inventou o black metal está de volta com «Into Oblivion», o décimo sexto álbum de estúdio. É o primeiro registo com nova música desde Storm the Gates, em 2018, e conta com a formação que já conhecemos bem: Cronos no baixo e voz, Rage na guitarra e Dante na bateria. Para falar sobre isto tudo, tivemos uma conversa com Rage.',
+      duration: '0:30', _segment: 'BLOCO 2 — APRESENTAÇÃO / VOZ OFF',
+      _note: '▶ Tom direto e com peso. Pausa natural antes do separador.' },
+    { contentType: 'jingle_3',       content: 'Jingle 3',                   duration: '0:03' },
+
+    // BLOCO 3 — ENTREVISTA
+    { contentType: 'interview',
+      content: '🎙 Entrevista com Rage (Venom)\n— Álbum «Into Oblivion» — conceito e processo\n— Regresso ao estúdio após Storm the Gates (2018)\n— Legado e influência no black metal e metal extremo\n— Digressões e planos para 2026',
+      duration: '33:00', _segment: 'BLOCO 3 — ENTREVISTA',
+      _note: '▶ Bloco central do episódio (~33 min). Entrar com separador imediatamente após.' },
+
+    // BLOCO 4 — PÓS-ENTREVISTA
+    { contentType: 'separador_3',    content: 'Separador 3',                duration: '0:20', _segment: 'BLOCO 4 — PÓS-ENTREVISTA' },
+    { contentType: 'song',           content: 'Venom — «As Above, So Below»  [do álbum «Into Oblivion»]', duration: '5:15',
+      _note: '▶ Separador de respiro após entrevista. Deixar a música completar.' },
+
+    // BLOCO 5 — NOTÍCIAS / NOVIDADES
+    { contentType: 'voice-over',
+      content: '1985 foi um ano impossível de repetir no metal. Hell Awaits dos Slayer chegou ao pico de um tsunami: nesse mesmo ano saíram os álbuns de estreia dos Megadeth, Exodus, Kreator, Possessed, Destruction, Hirax e Overkill. E ainda o Live After Death dos Iron Maiden, o To Mega Therion dos Celtic Frost e o Sacred Heart de Dio. Fortemente marcado pelos Mercyful Fate, o Hell Awaits representou uma mudança real nos Slayer — arranjos mais longos, mais progressivos. Enquanto a maioria das canções em Show No Mercy não chegava aos quatro minutos, três das sete faixas deste álbum ultrapassam os seis. Uma peça histórica que continua a fazer sentido hoje.',
+      duration: '0:36', _segment: 'BLOCO 5 — NOTÍCIAS / NOVIDADES',
+      _note: '▶ Com peso e entusiasmo — contexto histórico, não relatório.' },
+    { contentType: 'voice-over',
+      content: 'Os Dimmu Borgir anunciaram oficialmente o novo álbum de estúdio, muito aguardado — «Grand Serpent Rising», com lançamento previsto para 22 de maio pela Nuclear Blast Records. O segundo single chama-se «Ascent», e é exatamente o que o nome sugere: agressivo, visceral, retorcidamente belo. Como um raio num céu gelado do norte.',
+      duration: '0:20',
+      _note: '▶ Energético e direto.' },
+    { contentType: 'voice-over_promo',
+      content: 'Isso é tudo por esta semana. Dúvidas, sugestões ou apenas quererem falar de metal — jorge.botas@rtp.pt. Passem pelo metalglobal.pt, sigam o @Mountainking no Twitter e no Instagram, e o Metal Global está em podcast no Apple Podcasts, Spotify e YouTube Music. Até à próxima.',
+      duration: '0:30',
+      _note: '▶ Natural e sem pressas.' },
+    { contentType: 'song',           content: 'Slayer — «At Dawn They Sleep»  [do álbum «Hell Awaits», 1985]', duration: '6:10' },
+    { contentType: 'separador_3',    content: 'Separador 3',                duration: '0:20' },
+    { contentType: 'song',           content: 'Dimmu Borgir — «Ascent»  [single de «Grand Serpent Rising»]',   duration: '5:22' },
+
+    // BLOCO 6 — ENCERRAMENTO
+    { contentType: 'jingle_fecho',   content: 'Jingle de Fecho',            duration: '0:23', _segment: 'BLOCO 6 — ENCERRAMENTO',
+      _note: '▶ Deixar o jingle de fecho correr até ao fim.' },
+];
+
+// ── Helpers to inject segment/note rows directly into the table ─────────────
+function insertSegmentRow(label) {
+    const tbody = document.getElementById('scriptTableBody');
+    const tr    = document.createElement('tr');
+    tr.className = 'segment-header';
+    tr.dataset.nonData = 'segment';
+    const td = document.createElement('td');
+    td.colSpan = 6;
+    td.textContent = '▸ ' + label;
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+}
+
+function insertNoteRow(text) {
+    const tbody = document.getElementById('scriptTableBody');
+    const tr    = document.createElement('tr');
+    tr.className = 'note-row';
+    tr.dataset.nonData = 'note';
+    const td = document.createElement('td');
+    td.colSpan = 6;
+    td.textContent = text;
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+}
+
+// ── Load episode 984 into the editor ───────────────────────────────────────
+function loadEpisode984() {
+    if (document.getElementById('scriptTableBody').rows.length > 0) {
+        if (!confirm('Isto irá substituir o script atual. Continuar?')) return;
+    }
+
+    // Use the existing clearAll silent path if available, else clear manually
+    if (typeof _clearAllSilent === 'function') {
+        _clearAllSilent();
+    } else {
+        document.getElementById('scriptTableBody').innerHTML = '';
+        totalSeconds = 0;
+        historyStack = [];
+        redoStack    = [];
+    }
+
+    let dataRowIndex = 0;
+    EPISODE_984.forEach(item => {
+        // Insert segment header if defined
+        if (item._segment) insertSegmentRow(item._segment);
+
+        // Set form values and trigger addRow()
+        document.getElementById('contentType').value = item.contentType;
+        document.getElementById('contentText').value = item.content;
+
+        const durInput = document.getElementById('duration');
+        durInput.readOnly = false;
+        durInput.value    = item.duration;
+
+        addRow();
+        dataRowIndex++;
+
+        // Insert note row after if defined
+        if (item._note) insertNoteRow(item._note);
+    });
+
+    // Update meta bar
+    document.getElementById('metaNumber').textContent = '#984';
+    document.getElementById('metaName').textContent   = 'Venom';
+
+    showToast('Episódio #984 carregado ✓');
+}
+
+// ── Sync meta bar with show-info inputs ───────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('loadEpisode984Btn').addEventListener('click', loadEpisode984);
+
+    const numInput  = document.getElementById('showNumber');
+    const nameInput = document.getElementById('showName');
+    const metaNum   = document.getElementById('metaNumber');
+    const metaName  = document.getElementById('metaName');
+
+    if (numInput && metaNum)   numInput.addEventListener('input',  () => metaNum.textContent  = '#' + numInput.value);
+    if (nameInput && metaName) nameInput.addEventListener('input', () => metaName.textContent = nameInput.value);
+
+    // Auto-load episode on first visit (no saved scripts)
+    const hasSaved = Object.keys(localStorage).some(k => k.startsWith('radioscript_v1__'));
+    if (!hasSaved) {
+        // Small delay to let radio_script_logic.js init fully
+        setTimeout(loadEpisode984, 200);
+    }
+});
+</script>
+</body>
+</html>
