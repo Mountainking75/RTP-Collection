@@ -1,0 +1,178 @@
+/* print.css - Corrected and Improved */
+
+/* Hide elements not relevant for print */
+.controls,
+.button-group-export,
+.time-display, /* We will re-add time display in PDF, hide interactive one */
+.show-history-controls,
+.theme-btn,
+.template-container,
+.modal,
+#toast,
+.script-table-container table thead th:last-child, /* Hide Actions header */
+.script-table-container table tbody td:last-child /* Hide Actions column */ {
+    display: none !important;
+}
+
+/* Ensure table and layout are print-friendly */
+body {
+    font-family: Arial, sans-serif;
+    font-size: 10pt;
+    color: #000;
+    margin: 0;
+    padding: 20mm; /* Add some print margins */
+}
+
+.container {
+    width: 100%;
+    max-width: none; /* Override max-width for print */
+    padding: 0;
+    box-shadow: none;
+    border-radius: 0;
+}
+
+h1 {
+    font-size: 18pt;
+    text-align: center;
+    margin-bottom: 15mm;
+}
+
+.show-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 15mm;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 5mm;
+}
+
+.show-info input {
+    border: none;
+    font-weight: bold;
+    font-size: 12pt;
+    flex-grow: 1;
+    text-align: center;
+}
+
+.script-table-container {
+    display: block !important; /* Ensure it's not hidden by global rules */
+    margin-top: 20mm;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: auto; /* Allow table to break across pages */
+    margin-bottom: 10mm; /* Space after table */
+    table-layout: fixed; /* Added: Fix table layout to prevent content pushing columns */
+}
+
+thead {
+    display: table-header-group; /* Repeat header on each page */
+}
+
+th,
+td {
+    border: 1px solid #ccc;
+    padding: 5px 8px;
+    text-align: left;
+    vertical-align: top;
+    word-wrap: break-word; /* Added: Ensure long words break */
+}
+
+th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    font-size: 11pt;
+}
+
+td {
+    font-size: 9pt;
+}
+
+/* Adjust column widths for print */
+table th:nth-child(1),
+table td:nth-child(1) {
+    /* No. / Time */
+    width: 10%;
+}
+
+table th:nth-child(2),
+table td:nth-child(2) {
+    /* Type */
+    width: 15%;
+}
+
+table th:nth-child(3),
+table td:nth-child(3) {
+    /* Content */
+    width: 50%;
+}
+
+table th:nth-child(4),
+table td:nth-child(4) {
+    /* Duration */
+    width: 10%;
+}
+
+table th:nth-child(5),
+table td:nth-child(5) {
+    /* Accumulated - Keep if it might appear, otherwise remove */
+    width: 15%;
+    /* display: none; */ /* Uncomment this if Accumulated is never supposed to be shown */
+}
+
+/* Hide the last column (Actions) entirely */
+table th:last-child,
+table td:last-child {
+    display: none;
+}
+
+/* Specific styling for voice-over textareas in print */
+td textarea {
+    border: none;
+    background: transparent;
+    resize: none;
+    width: 100%;
+    overflow: hidden; /* Hide scrollbars if content is long */
+    padding: 0;
+    margin: 0;
+    font-size: 9pt; /* Match td font size */
+    height: auto !important; /* Allow textarea to expand to content */
+    line-height: 1.3; /* Added: Improve line spacing for readability */
+}
+
+/* General improvements for print */
+hr {
+    border: none;
+    border-top: 1px dashed #eee;
+    margin: 10mm 0;
+}
+
+/* For time segments/markers */
+.segment-marker {
+    display: block;
+    font-weight: bold;
+    color: #4CAF50; /* Green color for segments */
+    margin-top: 10mm;
+    margin-bottom: 5mm;
+    page-break-after: avoid; /* Keep segment header with its first content item */
+}
+
+.segment-marker::before {
+    content: "--- SEGMENT: " attr(data-name) " ---";
+    display: block;
+    text-align: center;
+    border-top: 1px dashed #999;
+    padding-top: 5mm;
+    margin-top: 5mm;
+}
+
+/* Adjust font sizes for different themes in print if needed, though usually not necessary */
+[data-theme="dark"] {
+    color: #000; /* Ensure dark theme prints black text on white */
+    background-color: #fff;
+}
+[data-theme="high-contrast"] {
+    color: #000; /* Ensure high-contrast prints black text on white */
+    background-color: #fff;
+}
